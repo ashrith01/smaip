@@ -1,0 +1,19 @@
+{
+  "vendors": [
+    {
+      "id": "acme_analytics",
+      "display": "Acme Analytics",
+      "poisoned": false
+    },
+    {
+      "id": "northwind_insights",
+      "display": "Northwind Insights",
+      "poisoned": false
+    },
+    {
+      "id": "helix_labs",
+      "display": "Helix Labs",
+      "poisoned": true
+    }
+  ]
+}
