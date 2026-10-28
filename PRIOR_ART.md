@@ -60,6 +60,8 @@ The HTTP shape follows the OpenAI-compatible server that vLLM builds on FastAPI.
 
 `POST /v1/chat/completions`, `GET /health`, and `GET /metrics` are the Week 1 surface. The mock engine is the default. The Hugging Face and vLLM engines are stubs that return a fixed string and do not import those libraries, so a test cannot download a model. An exact-prompt cache records hits and misses on the metrics endpoint. That serving shell is what a later GPU worker can sit behind. It is not a serving-system result by itself.
 
+Week 2 adds API keys, a per-key rate limit, request-size checks, and email/phone redaction before access logs. Those are ordinary serving controls on this same shell. They are not a new detector, and they do not change the claim in the next section: the novelty is composition and joint measurement.
+
 ## What is new here
 
 Each of the pieces above is prior art. The Week 1 system is the composition: an OpenAI-compatible CPU-first server, a privilege-separated LangGraph (orchestrator, reader, analyst, actor) with structured task, result, and provenance messages, and a tool gateway whose approval bit page text cannot set, with keyword and probe hooks on the same path. The eval harness turns those layers on and off (`no-defense`, `keyword`, `LP-only`, `probe-only`, `gateway-only`, `full-stack`) and reports utility, ASR, FPR, cost, and latency on one suite. The novelty is that composition and that joint measurement.
