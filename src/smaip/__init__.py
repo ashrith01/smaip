@@ -1,3 +1,3 @@
-"""Secure Multi-Agent Inference Platform, Week 1 scaffold."""
+"""Secure Multi-Agent Inference Platform."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

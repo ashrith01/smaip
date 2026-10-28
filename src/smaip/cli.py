@@ -6,11 +6,17 @@ from smaip.eval.harness import eval_main
 
 
 def serve(host: str = "127.0.0.1", port: int = 8000) -> None:
+    import logging
+    import os
+
     import uvicorn
 
     from smaip.serving.app import create_app
 
-    uvicorn.run(create_app(), host=host, port=port)
+    level_name = os.environ.get("SMAIP_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logging.basicConfig(level=level, format="%(message)s")
+    uvicorn.run(create_app(), host=host, port=port, log_level=level_name.lower())
 
 
 def main(argv: list[str] | None = None) -> int:

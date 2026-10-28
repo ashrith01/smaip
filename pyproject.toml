@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smaip"
-version = "0.1.0"
-description = "Secure Multi-Agent Inference Platform — Week 1 CPU-first scaffold"
+version = "0.2.0"
+description = "Secure Multi-Agent Inference Platform — CPU-first foundations (Weeks 1-2)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
