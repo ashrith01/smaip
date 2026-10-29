@@ -7,6 +7,9 @@ write, or delete step or an approval.
 Replanning has one trusted trigger: after a research task lists the vendor
 catalog, filename-shaped entries become read steps. The trigger does not read
 page prose.
+
+A research write stores the field digest, not a page. A sentence that names a
+role and a tool outside that role's allowlist is a refusal, not a step.
 """
 
 import json
@@ -37,6 +40,7 @@ class Step:
     approval_subject: str | None = None
     step_id: str = ""
     body_from_summary: bool = False
+    content_from_summary: bool = False
 
     def as_dict(self) -> dict:
         return {
@@ -48,6 +52,7 @@ class Step:
             "needs_approval": self.approval_subject is not None,
             "approval_subject": self.approval_subject,
             "body_from_summary": self.body_from_summary,
+            "content_from_summary": self.content_from_summary,
         }
 
 
@@ -126,7 +131,7 @@ def parse_user_fields(instruction: str) -> UserFields:
         intent=intent,
         expression=_expression(instruction),
         recipient=detect_recipient(instruction),
-        write_path=_token(instruction, "write"),
+        write_path=_write_path(instruction),
         delete_path=_token(instruction, "delete"),
     )
 
@@ -209,6 +214,7 @@ def expand_catalog(
             "needs_approval": False,
             "approval_subject": None,
             "body_from_summary": False,
+            "content_from_summary": False,
         }
         for index, page in enumerate(pages)
     ]
@@ -305,10 +311,11 @@ def _research_plan(fields: UserFields) -> list[Step]:
             Step(
                 "actor",
                 "write",
-                {"path": fields.write_path, "content": "note"},
+                {"path": fields.write_path, "content": "__from_summary__"},
                 f"Write {fields.write_path}",
                 approval_subject=fields.write_path,
                 step_id="write",
+                content_from_summary=True,
             )
         )
     if fields.delete_path:
@@ -396,6 +403,58 @@ def _legacy_plan(fields: UserFields) -> list[Step]:
             )
         )
     return steps
+
+
+# Role word plus a tool that role cannot call. The tool name is the refusal
+# token. These pairs match the gateway allowlist; they are not extra tools.
+_SCOPE_RULES: tuple[tuple[str, str, str], ...] = (
+    ("reader", "send", r"\b(send|email|mail)\b"),
+    ("reader", "write", r"\bwrite\b"),
+    ("reader", "delete", r"\bdelete\b"),
+    ("reader", "calculate", r"\bcalculate\b"),
+    ("reader", "summarize", r"\bsummarize\b"),
+    ("analyst", "send", r"\b(send|email|mail)\b"),
+    ("analyst", "write", r"\bwrite\b"),
+    ("analyst", "delete", r"\bdelete\b"),
+    ("analyst", "read_page", r"\bread\b"),
+    ("analyst", "list_pages", r"\blist\b"),
+    ("actor", "read_page", r"\bread\b"),
+    ("actor", "list_pages", r"\blist\b"),
+    ("actor", "calculate", r"\bcalculate\b"),
+    ("actor", "summarize", r"\bsummarize\b"),
+)
+
+
+def scope_refusals(instruction: str) -> list[str]:
+    """Tools the user asked a role to run that the allowlist does not grant.
+
+    The returned tokens look like ``reader:send``. They are not plan steps.
+    A normal research email does not name a role, so it is not a refusal.
+    """
+
+    found: list[str] = []
+    for role, tool, pattern in _SCOPE_RULES:
+        if re.search(rf"\b{role}\b", instruction, re.IGNORECASE) is None:
+            continue
+        if re.search(pattern, instruction, re.IGNORECASE) is None:
+            continue
+        token = f"{role}:{tool}"
+        if token not in found:
+            found.append(token)
+    return found
+
+
+def _write_path(instruction: str) -> str | None:
+    named = re.search(
+        r"\bwrite\s+the\s+field\s+summary\s+to\s+([A-Za-z0-9._-]+)",
+        instruction,
+        re.IGNORECASE,
+    )
+    if named:
+        token = named.group(1).rstrip(".,;")
+        if _safe_name(token):
+            return token
+    return _token(instruction, "write")
 
 
 def _expression(instruction: str) -> str | None:

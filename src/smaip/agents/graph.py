@@ -4,6 +4,10 @@ The orchestrator has no tools. It routes a plan that was built from the user
 task and explicit structured fields. Reader, analyst, and actor are the only
 nodes that call the gateway. Page results stay tainted and are not parsed for
 new steps. The only replan inserts read steps from a trusted filename catalog.
+
+A role/tool pair outside the gateway allowlist is recorded as a refusal and
+is not executed. Summarize, digest send, and digest write results carry the
+page taint, sources, and probe score forward.
 """
 
 from contextvars import ContextVar
@@ -19,11 +23,13 @@ from smaip.agents.planner import (
     expand_catalog,
     parse_user_fields,
     plan_fields,
+    scope_refusals,
 )
 from smaip.agents.reader import list_pages_view, read_page_view
+from smaip.agents.taint import Lineage, lineage_for
 from smaip.errors import TaintRejected
 from smaip.gateway.enforcement import Enforcement, full_stack
-from smaip.gateway.gateway import Gateway
+from smaip.gateway.gateway import ROLE_TOOLS, Gateway
 from smaip.messages import Approval, Provenance, Result, Task, Taint, dump_message
 
 _RUNTIME: ContextVar["Runtime"] = ContextVar("smaip_runtime")
@@ -37,6 +43,7 @@ class SmaipState(TypedDict, total=False):
     replans: int
     messages: list[dict]
     status: str
+    refusals: list[str]
 
 
 @dataclass
@@ -72,14 +79,19 @@ class Runtime:
             taint=Taint(),
             provenance=Provenance(origin="user", trust="trusted", agent="orchestrator"),
         )
+        refusals = scope_refusals(instruction)
+        messages = [dump_message(user)]
+        for token in refusals:
+            messages.append(dump_message(_refusal_result(token, f"refuse-{token.replace(':', '-')}")))
         return {
             "instruction": instruction,
             "fields": merged.as_dict(),
             "plan": plan,
             "step": 0,
             "replans": 0,
-            "messages": [dump_message(user)],
+            "messages": messages,
             "status": "running",
+            "refusals": refusals,
         }
 
     def approval_for(self, spec: dict) -> Approval | None:
@@ -149,6 +161,10 @@ def _run(role: str, state: SmaipState) -> dict:
     messages = list(state.get("messages") or [])
     fields = dict(state.get("fields") or {})
     task_id = str(spec.get("id") or f"step-{step_i}")
+    tool = str(spec["tool"])
+    if tool not in ROLE_TOOLS.get(role, frozenset()):
+        messages.append(dump_message(_refusal_result(f"{role}:{tool}", task_id)))
+        return {"messages": messages, "step": step_i + 1}
     try:
         arguments = bind_arguments(spec, messages, fields)
     except TaintRejected:
@@ -161,26 +177,43 @@ def _run(role: str, state: SmaipState) -> dict:
                     sender=role,
                     to="orchestrator",
                     content="tainted_subject",
-                    tool=str(spec["tool"]),
+                    tool=tool,
                     taint=Taint(tainted=True, labels=["rejected"], sources=["page"]),
                     provenance=Provenance(origin="system", trust="trusted", agent=role),
                 )
             )
         )
         return {"messages": messages, "step": step_i + 1}
+    lineage = lineage_for(spec, messages)
     approval = runtime.approval_for(spec) if spec.get("needs_approval") else None
     decision = runtime.gateway.execute(
         role=role,
-        tool=str(spec["tool"]),
+        tool=tool,
         arguments=arguments,
         enforcement=runtime.enforcement,
         approval=approval,
+        lineage=None if lineage is None else lineage.as_audit(),
     )
-    messages.append(dump_message(_result_from_decision(spec, task_id, decision)))
+    messages.append(dump_message(_result_from_decision(spec, task_id, decision, lineage)))
     return {"messages": messages, "step": step_i + 1}
 
 
-def _result_from_decision(spec: dict, task_id: str, decision) -> Result:
+def _refusal_result(token: str, task_id: str) -> Result:
+    text = f"refused:{token}"
+    return Result(
+        task_id=task_id,
+        ok=False,
+        output=text,
+        sender="orchestrator",
+        to="user",
+        content=text,
+        tool=None,
+        taint=Taint(),
+        provenance=Provenance(origin="system", trust="trusted", agent="orchestrator"),
+    )
+
+
+def _result_from_decision(spec: dict, task_id: str, decision, lineage: Lineage | None) -> Result:
     tool = str(spec["tool"])
     role = str(spec["role"])
     output = decision.output if decision.allowed else decision.reason
@@ -203,12 +236,16 @@ def _result_from_decision(spec: dict, task_id: str, decision) -> Result:
         probe_score = view["probe_score"]
         origin = view["origin"]
         trust = view["trust"]
-    elif decision.allowed and tool == "summarize":
-        output, content = present_summary(decision.output)
-        taint = Taint(tainted=True, labels=["derived"], sources=["page"])
-        probe_score = None
-    elif decision.allowed and tool == "send" and spec.get("body_from_summary"):
-        taint = Taint(tainted=True, labels=["derived"], sources=["page"])
+    elif lineage is not None and tool in {"summarize", "send", "write"}:
+        if decision.allowed and tool == "summarize":
+            output, content = present_summary(decision.output)
+        taint = lineage.as_taint()
+        probe_score = lineage.probe_score
+        origin = lineage.origin
+        trust = lineage.trust
+    uri = decision.uri
+    if uri is None and lineage is not None and lineage.sources:
+        uri = lineage.sources[0]
     return Result(
         task_id=task_id,
         ok=decision.allowed,
@@ -224,7 +261,7 @@ def _result_from_decision(spec: dict, task_id: str, decision) -> Result:
             origin=origin,
             trust=trust,
             agent=role,
-            uri=decision.uri,
+            uri=uri,
         ),
     )
 

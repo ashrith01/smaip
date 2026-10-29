@@ -1,7 +1,8 @@
-"""Auth, body size, and per-key rate limit in front of inference routes.
+"""Auth, body size, and per-key rate limit in front of inference and agent routes.
 
 `/health` and `/metrics` stay open. Keys are accepted only from
 `Authorization: Bearer` or `X-API-Key`, never from the query string.
+`POST /v1/chat/completions` and `POST /v1/agent/tasks` share one guard.
 """
 
 import hashlib
@@ -15,7 +16,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from smaip.serving.access import request_id_from_header
 
-_INFERENCE_PATH = "/v1/chat/completions"
+_GUARDED_PATHS = frozenset({"/v1/chat/completions", "/v1/agent/tasks"})
 _BODY_METHODS = {"POST", "PUT", "PATCH"}
 
 
@@ -98,7 +99,7 @@ class InferenceGuard:
         state = self.fastapi_app.state
         path = scope.get("path", "")
         method = scope.get("method", "GET").upper()
-        inference = method == "POST" and path.rstrip("/") == _INFERENCE_PATH
+        guarded = method == "POST" and path.rstrip("/") in _GUARDED_PATHS
 
         if method in _BODY_METHODS:
             content_length = request.headers.get("content-length", "").strip()
@@ -118,7 +119,7 @@ class InferenceGuard:
                     await response(scope, receive, send)
                     return
 
-        if inference:
+        if guarded:
             candidate = extract_api_key(request.headers)
             settings = state.settings
             if settings.require_api_key and not key_accepted(candidate, settings.api_keys):
