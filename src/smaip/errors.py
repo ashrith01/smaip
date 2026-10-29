@@ -17,6 +17,13 @@ class UnknownEngine(SmaipError):
     """Raised when a chat request names an engine this scaffold will not run."""
 
 
+class HfCpuDisabled(UnknownEngine):
+    """Raised when the optional CPU model is requested while the flag is off.
+
+    Raising this does not download weights.
+    """
+
+
 class NetworkRefused(SmaipError):
     """Raised when a client is asked to use the network."""
 

@@ -31,6 +31,7 @@ from smaip.errors import TaintRejected
 from smaip.gateway.enforcement import Enforcement, full_stack
 from smaip.gateway.gateway import ROLE_TOOLS, Gateway
 from smaip.messages import Approval, Provenance, Result, Task, Taint, dump_message
+from smaip.vendors import VendorLibrary
 
 _RUNTIME: ContextVar["Runtime"] = ContextVar("smaip_runtime")
 
@@ -53,9 +54,13 @@ class RunResult:
 
 
 class Runtime:
-    def __init__(self, enforcement: Enforcement | None = None) -> None:
+    def __init__(
+        self,
+        enforcement: Enforcement | None = None,
+        vendors: VendorLibrary | None = None,
+    ) -> None:
         self.enforcement = enforcement or full_stack()
-        self.gateway = Gateway()
+        self.gateway = Gateway(vendors=vendors)
         self._approvals: dict[str, Approval] = {}
 
     def prepare(self, instruction: str, fields: dict | None = None) -> SmaipState:
@@ -326,8 +331,9 @@ def run_task(
     enforcement: Enforcement | None = None,
     *,
     fields: dict | None = None,
+    vendors: VendorLibrary | None = None,
 ) -> RunResult:
-    runtime = Runtime(enforcement=enforcement)
+    runtime = Runtime(enforcement=enforcement, vendors=vendors)
     token = _RUNTIME.set(runtime)
     try:
         state = get_graph().invoke(

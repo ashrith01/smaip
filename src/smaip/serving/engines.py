@@ -1,10 +1,21 @@
 """Completion engines.
 
-mock is the default. The Hugging Face and vLLM engines are stubs: they return
-a deterministic string and do not import or download weights.
+mock is the default. The Hugging Face and vLLM engines named ``hf-stub`` and
+``vllm-stub`` are stubs: they return a deterministic string and do not import
+or download weights.
+
+``SMAIP_HF_CPU=1`` opts into a separate CPU backend for one small model.
+That backend lives in another module and is imported only when the flag is
+on. ``smaip-mock`` stays the mock engine either way. CI leaves the flag unset.
 """
 
-from smaip.errors import UnknownEngine
+import os
+
+from smaip.errors import HfCpuDisabled, UnknownEngine
+
+HF_CPU_MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
+_HF_CPU_KEYS = frozenset({"hf-cpu", HF_CPU_MODEL_ID.lower()})
+_CACHED: tuple[bool, "Engine"] | None = None
 
 
 class Engine:
@@ -51,6 +62,27 @@ class VllmStubEngine(Engine):
         )
 
 
+def hf_cpu_requested() -> bool:
+    return os.environ.get("SMAIP_HF_CPU", "").strip().lower() in {"1", "true", "yes"}
+
+
+def default_engine() -> Engine:
+    """Mock engine, unless ``SMAIP_HF_CPU`` selects the optional CPU backend."""
+
+    global _CACHED
+    flag = hf_cpu_requested()
+    if _CACHED is not None and _CACHED[0] == flag:
+        return _CACHED[1]
+    if not flag:
+        engine: Engine = MockEngine()
+    else:
+        from smaip.serving.hf_cpu import HfCpuEngine
+
+        engine = HfCpuEngine()
+    _CACHED = (flag, engine)
+    return engine
+
+
 def engine_for_model(model: str) -> Engine:
     key = model.strip().lower()
     if key in {"mock", "smaip-mock"}:
@@ -59,6 +91,15 @@ def engine_for_model(model: str) -> Engine:
         return HfStubEngine()
     if key in {"vllm", "vllm-stub"}:
         return VllmStubEngine()
+    if key in _HF_CPU_KEYS:
+        if not hf_cpu_requested():
+            raise HfCpuDisabled(
+                "HF CPU backend is off. Set SMAIP_HF_CPU=1 to load "
+                f"{HF_CPU_MODEL_ID} on CPU. No weights were downloaded."
+            )
+        from smaip.serving.hf_cpu import HfCpuEngine
+
+        return HfCpuEngine()
     raise UnknownEngine(
         f"unknown engine for model {model!r}; Week 1 accepts mock, hf-stub, and vllm-stub"
     )
