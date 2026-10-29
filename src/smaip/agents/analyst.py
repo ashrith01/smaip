@@ -9,7 +9,7 @@ import json
 
 from smaip.errors import ValidationError
 from smaip.fields import coerce_field_map, digest_fields
-from smaip.serving.engines import MockEngine
+from smaip.serving.engines import default_engine
 
 
 def collect_extracts(messages: list[dict]) -> dict[str, int]:
@@ -43,9 +43,13 @@ def collect_extracts(messages: list[dict]) -> dict[str, int]:
 
 
 def summary_draft(digest: str) -> str:
-    """Mock completion. The prompt is the field digest, not the page."""
+    """Completion over the field digest, not the page.
 
-    return MockEngine().complete([{"role": "user", "content": digest}])
+    The default engine is ``MockEngine``. ``SMAIP_HF_CPU=1`` selects the
+    optional CPU backend instead. The flag is unset in CI.
+    """
+
+    return default_engine().complete([{"role": "user", "content": digest}])
 
 
 def draft_from_messages(messages: list[dict]) -> str:

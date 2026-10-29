@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: week1 week2 week3 week4 install test eval serve up deploy down
+.PHONY: week1 week2 week3 week4 week5 install test eval serve up deploy down
 
 # Install the scaffold, run the suite, and write the ablation report.
 week1: install test eval
@@ -22,6 +22,15 @@ week3: install test eval
 week4: install test eval
 	$(PYTHON) -m smaip.cli week3
 	$(PYTHON) -m smaip.cli week4
+
+# Week 5 gate: the Week 4 checks, plus the indirect-injection suite
+# (keyword screen, traces, failure taxonomy, ablation table).
+# Pytest includes the skipped `hf` test. CI does not set SMAIP_HF_CPU
+# and does not download a model.
+week5: install test eval
+	$(PYTHON) -m smaip.cli week3
+	$(PYTHON) -m smaip.cli week4
+	$(PYTHON) -m smaip.cli week5
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"

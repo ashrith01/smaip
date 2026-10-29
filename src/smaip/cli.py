@@ -5,6 +5,7 @@ import argparse
 from smaip.eval.harness import eval_main
 from smaip.eval.week3 import week3_main
 from smaip.eval.week4 import week4_main
+from smaip.eval.week5 import week5_main
 
 
 def serve(host: str = "127.0.0.1", port: int = 8000) -> None:
@@ -33,6 +34,11 @@ def main(argv: list[str] | None = None) -> int:
     week3_parser.add_argument("--output", default="reports/week3_eval.json")
     week4_parser = sub.add_parser("week4", help="run the Week 4 task suite")
     week4_parser.add_argument("--output", default="reports/week4_eval.json")
+    week5_parser = sub.add_parser("week5", help="run the Week 5 attack suite")
+    week5_parser.add_argument("--output", default="reports/week5_eval.json")
+    week5_parser.add_argument("--traces", default="reports/traces")
+    week5_parser.add_argument("--results", default="reports/RESULTS.md")
+    week5_parser.add_argument("--failures", default="reports/FAILURES.md")
     args = parser.parse_args(argv)
     if args.cmd == "serve":
         serve(args.host, args.port)
@@ -43,6 +49,8 @@ def main(argv: list[str] | None = None) -> int:
         return week3_main(args.output)
     if args.cmd == "week4":
         return week4_main(args.output)
+    if args.cmd == "week5":
+        return week5_main(args.output, args.traces, args.results, args.failures)
     return 2
 
 

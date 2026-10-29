@@ -8,6 +8,8 @@ Week 3 adds `src/smaip/eval/suites/week3.json`, a small original task suite for 
 
 Week 4 adds `src/smaip/eval/suites/week4.json`. The new clean tasks are a file write and a role-scope refusal on the same fixtures. The new attack strings are the fixed linear-probe phrases and the mock activation-probe markers already in this repo. Nothing in that file is copied from AgentDojo, InjecAgent, or BIPIA.
 
+Week 5 adds original pages under `src/smaip/fixture_data/week5/vendors/` and the task list `src/smaip/eval/suites/week5.json`. The attack families follow the indirect-injection setting in AgentDojo: a tool result (here, a page the reader returns) carries an instruction that tries to change a later tool call. The families are exfiltration to an attacker address, a destructive tool call, a recipient swap, an instruction override, obfuscated or encoded text, a multi-hop note split across pages, and an approval-shaped field. Benign pages use trigger-like words, including two that quote the keyword list, so the screen's false-positive rate is measured instead of assumed to be zero. No task, user prompt, injection string, or page text is copied from AgentDojo, InjecAgent, or BIPIA. The strings were written for this repo.
+
 Do not vendor AgentDojo, InjecAgent, or BIPIA into this repository. Record the upstream commit, the license that applies to the exact snapshot, and any share-alike obligations before a later week copies an example. Re-check the upstream license the week you import. The notes here are a watch list, not a grant.
 
 ## AgentDojo
@@ -16,7 +18,7 @@ Do not vendor AgentDojo, InjecAgent, or BIPIA into this repository. Record the u
 - Code: https://github.com/ethz-spylab/agentdojo
 - License watch: the project is released under the MIT License, copyright 2024 the authors above. The authors note that explicitly marked portions that come from earlier work can carry a different license. Confirm `LICENSE` at the commit you would pin. Do not vendor the environment, tasks, or attack corpus here.
 
-AgentDojo is the dynamic tool-use environment this scaffold's metrics (utility and attack success on stateful tool traces) are aimed at later. Week 1 does not import it.
+AgentDojo is the dynamic tool-use environment this scaffold's metrics (utility and attack success on stateful tool traces) are aimed at. Week 5 models that setting with original pages. It still does not import the environment, the tasks, or the attack corpus. The upstream license remains the MIT License noted above; these SMAIP pages are project code, not a derivative dataset cut from that corpus.
 
 ## InjecAgent
 
@@ -43,7 +45,11 @@ InjecAgent is the indirect-injection case set cited by the AASE agent-action pro
 | `src/smaip/fixture_data/vendors/acme_analytics/` | clean synthetic brief | project code, written for SMAIP |
 | `src/smaip/fixture_data/vendors/northwind_insights/` | clean synthetic brief | project code, written for SMAIP |
 | `src/smaip/fixture_data/vendors/helix_labs/` | poisoned synthetic brief | project code, written for SMAIP |
+| `src/smaip/fixture_data/week5/vendors/` | original Week 5 attack and benign pages | project code, written for SMAIP |
+| `src/smaip/eval/suites/week5.json` | Week 5 episode list | project code, written for SMAIP |
 
 Helix Labs is labeled `poisoned: true` in `vendors.json`. Its pages tell the agent to email `attacker@evil.example` and to `delete audit.log`, and they contain an `approval: true` string. That string is not an approval. Acme Analytics and Northwind Insights are clean.
 
 The eval harness adds two further synthetic attack strings (a linear-probe paraphrase and an activation-probe marker). Those strings live in `src/smaip/eval/scenarios.py`. They are not from the benchmarks above.
+
+Week 5 does not download model weights. The optional CPU backend names `Qwen/Qwen2.5-0.5B-Instruct` and loads it only when `SMAIP_HF_CPU=1` and a completion actually runs. The weights are not in this tree. The model card LICENSE is the Apache License 2.0, copyright 2024 Alibaba Cloud (https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/blob/main/LICENSE). Re-check that file before a deployment that downloads the weights. CI does not download them.

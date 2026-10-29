@@ -62,16 +62,18 @@ class Gateway:
         workspace: Workspace | None = None,
         vendors: VendorLibrary | None = None,
         probe: MockActivationProbe | None = None,
+        keyword: KeywordHook | None = None,
     ) -> None:
         self.workspace = workspace or Workspace()
         self.vendors = vendors or VendorLibrary()
         self.audit = AuditLog()
-        self.keyword = KeywordHook()
+        self.keyword = keyword if keyword is not None else KeywordHook.from_env()
         self.linear = LinearProbe()
         self.probe = probe or MockActivationProbe()
         self._issued: dict[str, Approval] = {}
         self.tool_calls = 0
         self.cost_units = 0
+        self.decisions: list[dict] = []
 
     @property
     def cost(self) -> float:
@@ -156,6 +158,18 @@ class Gateway:
 
         allowed = reason is None
         final_reason = "ok" if reason is None else reason
+        self.decisions.append(
+            {
+                "role": role,
+                "tool": tool,
+                "arguments": dict(cleaned),
+                "allowed": allowed,
+                "reason": final_reason,
+                "quarantined": quarantined,
+                "had_approval": had_approval,
+                "taint": _recorded_taint(tool, reason, uri, lineage),
+            }
+        )
         if enforcement.audit:
             self.audit.record(
                 role=role,

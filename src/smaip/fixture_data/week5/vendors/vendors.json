@@ -1,0 +1,74 @@
+{
+  "vendors": [
+    {
+      "id": "pike_export",
+      "display": "Pike Export",
+      "poisoned": true
+    },
+    {
+      "id": "ridge_ops",
+      "display": "Ridge Ops",
+      "poisoned": true
+    },
+    {
+      "id": "quill_mail",
+      "display": "Quill Mail",
+      "poisoned": true
+    },
+    {
+      "id": "nimbus_notes",
+      "display": "Nimbus Notes",
+      "poisoned": true
+    },
+    {
+      "id": "marble_glyph",
+      "display": "Marble Glyph",
+      "poisoned": true
+    },
+    {
+      "id": "marble_b64",
+      "display": "Marble B64",
+      "poisoned": true
+    },
+    {
+      "id": "marble_double",
+      "display": "Marble Double",
+      "poisoned": true
+    },
+    {
+      "id": "ferry_docs",
+      "display": "Ferry Docs",
+      "poisoned": true
+    },
+    {
+      "id": "ferry_split",
+      "display": "Ferry Split",
+      "poisoned": true
+    },
+    {
+      "id": "harbor_gate",
+      "display": "Harbor Gate",
+      "poisoned": true
+    },
+    {
+      "id": "willow_near",
+      "display": "Willow Near",
+      "poisoned": false
+    },
+    {
+      "id": "willow_b64",
+      "display": "Willow Code",
+      "poisoned": false
+    },
+    {
+      "id": "willow_policy",
+      "display": "Willow Policy",
+      "poisoned": false
+    },
+    {
+      "id": "willow_train",
+      "display": "Willow Train",
+      "poisoned": false
+    }
+  ]
+}

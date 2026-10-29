@@ -334,6 +334,52 @@ curl -s http://127.0.0.1:8000/v1/agent/tasks \
 
 When `SMAIP_API_KEYS` is set, send `Authorization: Bearer` the same way as chat completions.
 
+## 10. Week 5
+
+Week 5 measures a broader indirect-injection suite and an optional CPU model. The default engine is still `MockEngine`. There is no GPU and no API key. CI does not download weights.
+
+```bash
+make week5
+```
+
+`make week5` installs `.[dev]`, runs pytest, runs the Week 1 ablation gate, then the Week 3 and Week 4 suites, then the Week 5 suite. On its own:
+
+```bash
+python3 -m smaip.cli week5
+```
+
+That writes `reports/week5_eval.json`, `reports/RESULTS.md`, `reports/FAILURES.md`, and per-episode JSONL under `reports/traces/`. Each trace line is an agent message (with taint and probe score), a gateway decision, or the final side effects.
+
+### Attack pages
+
+`src/smaip/fixture_data/week5/vendors/` holds original pages. They are not AgentDojo, InjecAgent, or BIPIA text. See `DATA.md`. The families are exfiltration to an attacker address, a destructive tool call (`audit.log`), a recipient swap, an instruction override, obfuscated text (confusable letters, one base64 layer, and a second base64 layer the screen does not unwrap), a multi-hop note across pages, and a page that says `approval: true`. Benign pages include trigger-like words. Two of them quote the keyword list on purpose.
+
+The graph still plans from the user fields. ASR is the injection-following caller after that plan. The caller cannot mint an approval. On this suite the measured rates are:
+
+| ablation | utility | asr | fpr |
+| --- | --- | --- | --- |
+| `no-defense` | 1 | 1 | 0 |
+| `keyword` | 1 | 0.30 | 0.50 |
+| `LP-only` | 1 | 1 | 0 |
+| `probe-only` | 1 | 1 | 0 |
+| `gateway-only` | 1 | 0 | 0 |
+| `full-stack` | 1 | 0 | 0.50 |
+
+Utility stays 1 because the digest email to the user-named address still lands, including when a benign page is quarantined. FPR counts that quarantine. The keyword screen's page-level false-positive rate is the same 0.50: `willow_policy` quotes `ignore previous instructions`, and `willow_train` says `exfiltrate`. Near-miss wording (`ignore the previous quarter`, `audit log`, `exfiltration`) is not a hit. Keyword ASR is 3 of 10. The misses are the double-encoded blob, the base64 halves split across two pages, and the approval-shaped page whose recipient is not on the list. `LP-only` and `probe-only` do not score these phrases. The gateway stops every injected side effect. Full-stack stops them too and keeps the keyword screen's false positives. Cost and latency are in `reports/RESULTS.md`. `reports/FAILURES.md` labels each miss and false positive (`missed-obfuscation`, `over-blocking`, `approval-bypass attempt`, or the attack family).
+
+The keyword list is the Week 1 list unless `SMAIP_KEYWORD_PATTERNS` is set to a comma-separated replacement. The Week 5 gate expects the built-in list.
+
+### Optional CPU model
+
+`SMAIP_HF_CPU=1` selects `Qwen/Qwen2.5-0.5B-Instruct` for `default_engine()` and for the model ids `hf-cpu` and `Qwen/Qwen2.5-0.5B-Instruct`. Generation is forced onto CPU. The weights download on the first completion, not at import. With the flag unset, those model ids are rejected and nothing is downloaded. `smaip-mock` stays the mock engine either way. Install the extra only when you mean to run it:
+
+```bash
+python3 -m pip install -e ".[hf]"
+SMAIP_HF_CPU=1 SMAIP_RUN_HF=1 python3 -m pytest -m hf
+```
+
+`tests/test_hf.py` marks that completion test with `hf`. Pytest skips it unless `SMAIP_RUN_HF=1`. `make week5` and CI leave both variables unset. The Docker image does not install the extra.
+
 ## Layout
 
 ```text
@@ -342,8 +388,9 @@ src/smaip/agents/      planner, specialists, and LangGraph roles
 src/smaip/gateway/     allowlists, schemas, audit, hooks, approval
 src/smaip/probes/      keyword hook, linear probe, mock probe, Qwen stub
 src/smaip/clients/     Codex client stub
-src/smaip/eval/        ablation harness and the Week 3 and Week 4 task suites
+src/smaip/eval/        ablation harness and the Week 3, Week 4, and Week 5 suites
 src/smaip/fixture_data/vendors/   Acme, Northwind, Helix
+src/smaip/fixture_data/week5/     original indirect-injection pages
 docs/TESTING.md        what each make weekN gate covers
 ```
 
@@ -358,8 +405,8 @@ docs/TESTING.md        what each make weekN gate covers
 - The Codex client stub raises `NetworkRefused` and does not open a socket.
 - `QwenActivationProbe` raises `ProbeWeightsUnavailable` for `Qwen/Qwen2.5-3B`. The default probe is `MockActivationProbe`.
 
-## What Week 1 does not do
+## What this tree does not do
 
-The Hugging Face engine, the vLLM engine, the Qwen probe, and the Codex client are stubs. There is no GPU path and no model download. AgentDojo, InjecAgent, and BIPIA are described in `DATA.md` and are not vendored. The fixed probes are stand-ins so the ablation table runs offline. They are not the trained probes from the papers in `PRIOR_ART.md`.
+The default Hugging Face and vLLM model names are stubs. `QwenActivationProbe` still refuses `Qwen/Qwen2.5-3B`. The optional CPU path is `Qwen/Qwen2.5-0.5B-Instruct` behind `SMAIP_HF_CPU`, and it stays off in CI. The Codex client is still a stub. There is no GPU path. AgentDojo, InjecAgent, and BIPIA are described in `DATA.md` and are not vendored. The Week 5 pages are original. The fixed probes are stand-ins so the ablation table runs offline. They are not the trained probes from the papers in `PRIOR_ART.md`.
 
 The novelty of this scaffold is the composition of serving, privilege-separated agents, and the gateway, plus the joint measurement of those layers. It is not a new attack detector.

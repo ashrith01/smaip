@@ -62,6 +62,8 @@ The HTTP shape follows the OpenAI-compatible server that vLLM builds on FastAPI.
 
 Week 2 adds API keys, a per-key rate limit, request-size checks, and email/phone redaction before access logs. Those are ordinary serving controls on this same shell. They are not a new detector, and they do not change the claim in the next section: the novelty is composition and joint measurement.
 
+Week 5 does not add a detector. It widens the measurement: an original indirect-injection suite in the AgentDojo setting (tool output tries to redirect a later tool call), a keyword screen that normalizes confusable and encoded text and reports the false positives that remain, per-episode traces, and a failure taxonomy. The optional `Qwen/Qwen2.5-0.5B-Instruct` CPU backend sits behind the same `Engine.complete` interface. It is off unless `SMAIP_HF_CPU` is set. It is not a trained probe and it is not loaded in CI.
+
 ## What is new here
 
 Each of the pieces above is prior art. The Week 1 system is the composition: an OpenAI-compatible CPU-first server, a privilege-separated LangGraph (orchestrator, reader, analyst, actor) with structured task, result, and provenance messages, and a tool gateway whose approval bit page text cannot set, with keyword and probe hooks on the same path. The eval harness turns those layers on and off (`no-defense`, `keyword`, `LP-only`, `probe-only`, `gateway-only`, `full-stack`) and reports utility, ASR, FPR, cost, and latency on one suite. The novelty is that composition and that joint measurement.

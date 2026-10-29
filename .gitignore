@@ -11,5 +11,6 @@ build/
 venv/
 .env
 reports/*.json
+reports/traces/
 .coverage
 htmlcov/
