@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from smaip.errors import SandboxError, ValidationError
+from smaip.fields import coerce_field_map, digest_fields
 from smaip.gateway.audit import AuditLog
 from smaip.gateway.enforcement import Enforcement
 from smaip.gateway.sandbox import evaluate
@@ -24,7 +25,7 @@ from smaip.vendors import VendorLibrary
 ROLE_TOOLS: dict[str, frozenset[str]] = {
     "orchestrator": frozenset(),
     "reader": frozenset({"list_pages", "read_page"}),
-    "analyst": frozenset({"calculate"}),
+    "analyst": frozenset({"calculate", "summarize"}),
     "actor": frozenset({"send", "write", "delete"}),
 }
 
@@ -238,6 +239,8 @@ class Gateway:
             if len(expression) > 100 or any(char not in "0123456789+-*/%.() \t" for char in expression):
                 raise ValidationError("expression rejected")
             return {"expression": expression}
+        if tool == "summarize":
+            return {"fields": coerce_field_map(arguments.get("fields"))}
         if tool == "send":
             to = arguments.get("to")
             subject = arguments.get("subject", "")
@@ -272,6 +275,8 @@ class Gateway:
             return text, uri
         if tool == "calculate":
             return str(evaluate(str(arguments["expression"]))), None
+        if tool == "summarize":
+            return digest_fields(arguments.get("fields")), None
         if tool == "send":
             output = self.workspace.send(
                 str(arguments["to"]),
