@@ -1,9 +1,9 @@
 """OpenAI-compatible API.
 
-POST /v1/chat/completions, GET /health, GET /metrics.
+POST /v1/chat/completions, POST /v1/agent/tasks, GET /health, GET /metrics.
 The default engine is mock. Nothing in this module downloads weights.
-Health and metrics stay open. Inference auth, body size, and per-key rate
-limits are configurable via ServingSettings.
+Health and metrics stay open. Chat and agent-task auth, body size, and
+per-key rate limits are configurable via ServingSettings.
 """
 
 import json
@@ -33,6 +33,12 @@ class ChatMessage(BaseModel):
 
     role: Literal["system", "user", "assistant", "tool"]
     content: str = Field(min_length=1, max_length=1_000_000)
+
+
+class AgentTaskRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    instruction: str = Field(min_length=1, max_length=4_000)
 
 
 class ChatRequest(BaseModel):
@@ -225,5 +231,65 @@ def create_app(
             "smaip": smaip,
         }
 
+    @app.post("/v1/agent/tasks")
+    def agent_task(body: AgentTaskRequest, request: Request) -> dict:
+        instruction = body.instruction.strip()
+        if not instruction:
+            reject_payload(
+                request,
+                status=400,
+                message="instruction must not be empty",
+                error_type="invalid_request",
+            )
+        # Imported here so serving.app can load without a cycle through the graph.
+        from smaip.agents.graph import run_task
+        from smaip.gateway.enforcement import full_stack
+
+        result = run_task(instruction, enforcement=full_stack())
+        request_id = getattr(request.state, "request_id", "")
+        app.state.request_audit.record(
+            {
+                "ts": time.time(),
+                "event": "agent.task",
+                "request_id": request_id,
+                "status": 200,
+                "engine": "mock",
+                "redacted_preview": redact_pii(instruction)[:240],
+            }
+        )
+        return _agent_payload(result, instruction)
+
     app.add_middleware(InferenceGuard, fastapi_app=app)
     return app
+
+
+def _agent_payload(result, instruction: str) -> dict:
+    messages = []
+    for message in result.state.get("messages") or []:
+        output = str(message.get("output", ""))
+        messages.append(
+            {
+                "kind": message.get("kind"),
+                "from": message.get("from"),
+                "to": message.get("to"),
+                "tool": message.get("tool"),
+                "ok": message.get("ok"),
+                "taint": message.get("taint"),
+                "provenance": message.get("provenance"),
+                "probe_score": message.get("probe_score"),
+                "output": output[:500],
+            }
+        )
+    return {
+        "object": "smaip.agent_task",
+        "status": result.state.get("status"),
+        "engine": "mock",
+        "gpu": False,
+        "instruction": instruction,
+        "refusals": list(result.state.get("refusals") or []),
+        "sent": list(result.gateway.workspace.sent),
+        "files": dict(result.gateway.workspace.files),
+        "messages": messages,
+        "tool_calls": result.gateway.tool_calls,
+        "cost": result.gateway.cost,
+    }

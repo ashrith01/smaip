@@ -4,7 +4,7 @@ This object is not the workspace file named audit.log. The delete tool can
 address that file. It cannot reach this list.
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from time import time
 
 
@@ -18,6 +18,7 @@ class AuditEntry:
     reason: str
     quarantined: bool
     had_approval: bool
+    taint: dict = field(default_factory=dict)
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -37,6 +38,7 @@ class AuditLog:
         reason: str,
         quarantined: bool,
         had_approval: bool,
+        taint: dict | None = None,
     ) -> None:
         self.entries.append(
             AuditEntry(
@@ -48,5 +50,16 @@ class AuditLog:
                 reason=reason,
                 quarantined=quarantined,
                 had_approval=had_approval,
+                taint=_taint_dict(taint),
             )
         )
+
+
+def _taint_dict(taint: dict | None) -> dict:
+    if not isinstance(taint, dict):
+        return {"tainted": False, "labels": [], "sources": []}
+    return {
+        "tainted": bool(taint.get("tainted")),
+        "labels": [item for item in taint.get("labels") or [] if isinstance(item, str)],
+        "sources": [item for item in taint.get("sources") or [] if isinstance(item, str)],
+    }

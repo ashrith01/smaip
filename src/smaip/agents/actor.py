@@ -32,7 +32,7 @@ def bind_arguments(spec: dict, messages: list[dict], fields: dict) -> dict:
     if tool == "send":
         return _send(spec, raw, messages, fields)
     if tool == "write":
-        return _write(raw, fields)
+        return _write(spec, raw, messages, fields)
     if tool == "delete":
         return _delete(fields)
     return raw
@@ -59,11 +59,14 @@ def _send(spec: dict, raw: dict, messages: list[dict], fields: dict) -> dict:
     return {"to": recipient, "subject": subject, "body": body}
 
 
-def _write(raw: dict, fields: dict) -> dict:
+def _write(spec: dict, raw: dict, messages: list[dict], fields: dict) -> dict:
     path = _trusted(fields, "write_path")
-    content = raw.get("content", "")
-    if not isinstance(content, str):
-        raise TaintRejected("tainted_subject")
+    if spec.get("content_from_summary") or raw.get("content") == SUMMARY_BODY:
+        content = draft_from_messages(messages)
+    else:
+        content = raw.get("content", "")
+        if not isinstance(content, str):
+            raise TaintRejected("tainted_subject")
     return {"path": path, "content": content}
 
 

@@ -101,6 +101,7 @@ class Gateway:
         enforcement: Enforcement,
         untrusted_text: str = "",
         approval: Approval | None = None,
+        lineage: dict | None = None,
     ) -> Decision:
         cleaned = {
             key: value
@@ -164,6 +165,7 @@ class Gateway:
                 reason=final_reason,
                 quarantined=quarantined,
                 had_approval=had_approval,
+                taint=_recorded_taint(tool, reason, uri, lineage),
             )
         return Decision(
             allowed=allowed,
@@ -289,6 +291,35 @@ class Gateway:
         if tool == "delete":
             return self.workspace.delete(str(arguments["path"])), None
         raise ValidationError("tool rejected")
+
+
+def _recorded_taint(
+    tool: str,
+    reason: str | None,
+    uri: str | None,
+    lineage: dict | None,
+) -> dict:
+    """Taint stored on the audit row for this call.
+
+    A successful page read is tainted at the source. Later steps pass the
+    lineage computed from those reads. Other calls stay clean.
+    """
+
+    if reason is None and tool == "read_page":
+        return {
+            "tainted": True,
+            "labels": ["page"],
+            "sources": [uri] if uri else [],
+        }
+    if reason is None and tool == "list_pages":
+        return {"tainted": False, "labels": [], "sources": []}
+    if isinstance(lineage, dict):
+        return {
+            "tainted": bool(lineage.get("tainted")),
+            "labels": [item for item in lineage.get("labels") or [] if isinstance(item, str)],
+            "sources": [item for item in lineage.get("sources") or [] if isinstance(item, str)],
+        }
+    return {"tainted": False, "labels": [], "sources": []}
 
 
 def _hook_text(untrusted_text: str, arguments: dict[str, Any]) -> str:
