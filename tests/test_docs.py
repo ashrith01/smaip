@@ -23,7 +23,7 @@ def test_readme_is_stepwise():
 
 def test_makefile_targets():
     text = (ROOT / "Makefile").read_text(encoding="utf-8")
-    for target in ("week1:", "week2:", "serve:", "eval:", "deploy:", "down:"):
+    for target in ("week1:", "week2:", "week3:", "serve:", "eval:", "deploy:", "down:"):
         assert target in text
     assert "pytest" in text
     assert "docker compose up --build -d" in text
@@ -57,6 +57,7 @@ def test_week2_docs_ci_and_deploy_files():
         "ubuntu-latest",
         'python-version: "3.12"',
         "make week2",
+        "make week3",
         "docker build",
     ):
         assert snippet in workflow
@@ -71,6 +72,22 @@ def test_week2_docs_ci_and_deploy_files():
     example = (ROOT / ".env.example").read_text(encoding="utf-8")
     assert "SMAIP_API_KEYS=dev-local-key" in example
     assert "SMAIP_REQUIRE_API_KEY=true" in example
+
+
+def test_week3_docs_describe_the_mock_graph_and_suite():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    for snippet in (
+        "make week3",
+        "python3 -m smaip.cli week3",
+        "MockEngine",
+        "week3.json",
+        "Research Acme Analytics",
+        "taint",
+    ):
+        assert snippet in readme
+    data = (ROOT / "DATA.md").read_text(encoding="utf-8")
+    assert "week3.json" in data
+    assert "Week 2 does not add datasets" in data
 
 
 def test_data_md_lists_the_benchmarks_and_refuses_to_vendor_them():

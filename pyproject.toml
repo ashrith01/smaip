@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smaip"
-version = "0.2.0"
-description = "Secure Multi-Agent Inference Platform — CPU-first foundations (Weeks 1-2)"
+version = "0.3.0"
+description = "Secure Multi-Agent Inference Platform — mock multi-agent runtime (Week 3)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -31,6 +31,7 @@ where = ["src"]
 smaip = [
     "fixture_data/vendors/*.json",
     "fixture_data/vendors/*/*.md",
+    "eval/suites/*.json",
 ]
 
 [tool.pytest.ini_options]

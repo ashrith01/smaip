@@ -23,3 +23,7 @@ class NetworkRefused(SmaipError):
 
 class ProbeWeightsUnavailable(SmaipError):
     """Raised when a probe would need to download or load model weights."""
+
+
+class TaintRejected(SmaipError):
+    """Raised when an actor subject would be taken from tainted data."""
