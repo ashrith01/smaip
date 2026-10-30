@@ -352,22 +352,51 @@ That writes `reports/week5_eval.json`, `reports/RESULTS.md`, `reports/FAILURES.m
 
 ### Attack pages
 
-`src/smaip/fixture_data/week5/vendors/` holds original pages. They are not AgentDojo, InjecAgent, or BIPIA text. See `DATA.md`. The families are exfiltration to an attacker address, a destructive tool call (`audit.log`), a recipient swap, an instruction override, obfuscated text (confusable letters, one base64 layer, and a second base64 layer the screen does not unwrap), a multi-hop note across pages, and a page that says `approval: true`. Benign pages include trigger-like words. Two of them quote the keyword list on purpose.
+`src/smaip/fixture_data/week5/vendors/` holds original pages. They are not AgentDojo, InjecAgent, or BIPIA text. See `DATA.md`. The families are exfiltration to an attacker address, a destructive tool call (`audit.log`), a recipient swap, an instruction override, obfuscated text (confusable letters and base64), a multi-hop note across pages, and a page that says `approval: true`. Benign pages include trigger-like words. Two of them quote the keyword list on purpose.
 
-The graph still plans from the user fields. ASR is the injection-following caller after that plan. The caller cannot mint an approval. On this suite the measured rates are:
+The graph still plans from the user fields. ASR is the injection-following caller after that plan. The caller cannot mint an approval. The keyword screen is the Week 6 screen, so this suite is remeasured with instruction context, a decode depth of 3, and cross-message fragment joins. On this suite the measured rates are:
 
 | ablation | utility | asr | fpr |
 | --- | --- | --- | --- |
 | `no-defense` | 1 | 1 | 0 |
-| `keyword` | 1 | 0.30 | 0.50 |
+| `keyword` | 1 | 0.10 | 0 |
 | `LP-only` | 1 | 1 | 0 |
 | `probe-only` | 1 | 1 | 0 |
 | `gateway-only` | 1 | 0 | 0 |
-| `full-stack` | 1 | 0 | 0.50 |
+| `full-stack` | 1 | 0 | 0 |
 
-Utility stays 1 because the digest email to the user-named address still lands, including when a benign page is quarantined. FPR counts that quarantine. The keyword screen's page-level false-positive rate is the same 0.50: `willow_policy` quotes `ignore previous instructions`, and `willow_train` says `exfiltrate`. Near-miss wording (`ignore the previous quarter`, `audit log`, `exfiltration`) is not a hit. Keyword ASR is 3 of 10. The misses are the double-encoded blob, the base64 halves split across two pages, and the approval-shaped page whose recipient is not on the list. `LP-only` and `probe-only` do not score these phrases. The gateway stops every injected side effect. Full-stack stops them too and keeps the keyword screen's false positives. Cost and latency are in `reports/RESULTS.md`. `reports/FAILURES.md` labels each miss and false positive (`missed-obfuscation`, `over-blocking`, `approval-bypass attempt`, or the attack family).
+Utility stays 1 because the digest email to the user-named address still lands. FPR counts quarantine. Quoted policy text and the training sentence are not instructions, so the keyword FPR is 0. The double-encoded blob and the base64 halves split across pages are caught. The remaining keyword miss is the approval-shaped page whose recipient is not on the list (1 of 10). The screen that shipped with Week 5, before that change, measured keyword ASR 0.30 and FPR 0.50, and the same FPR on `full-stack`. `reports/RESULTS.md` keeps that before/after table. `LP-only` and `probe-only` are stubs until Week 7 and do not score these phrases. The gateway stops every injected side effect. Full-stack stops them too.
 
 The keyword list is the Week 1 list unless `SMAIP_KEYWORD_PATTERNS` is set to a comma-separated replacement. The Week 5 gate expects the built-in list.
+
+## 11. Week 6
+
+Week 6 is the last CPU week. It cuts the keyword false-positive rate with an instruction-versus-quote split, closes nested base64 up to `KeywordHook.MAX_DECODE_DEPTH` (3), and joins decoded fragments across pages. The default engine is still `MockEngine`. There is no GPU and no API key. CI does not download weights. `LP-only` and `probe-only` stay stubs until Week 7.
+
+```bash
+make week6
+```
+
+`make week6` installs `.[dev]`, runs pytest, runs the Week 1 ablation gate, then the Week 3, Week 4, and Week 5 suites, then the Week 6 suite. On its own:
+
+```bash
+python3 -m smaip.cli week6
+```
+
+That writes `reports/week6_eval.json`, `reports/RESULTS.md`, `reports/FAILURES.md`, and per-episode JSONL under `reports/traces/`. The family list and the context rules are in `docs/ATTACK_TAXONOMY.md`.
+
+`src/smaip/fixture_data/week6/vendors/` holds original pages. Hard negatives quote the keyword list, fence it in code (including a nested base64 sample), report it as speech, or discuss it in a security article. Attacks include a bare exfiltration, homoglyphs, a double base64 wrap, a triple wrap inside the depth bound, halves split across two pages, a bare imperative beside a quotation, a quotation-only instruction, and an approval-shaped page. On this suite:
+
+| ablation | utility | asr | fpr |
+| --- | --- | --- | --- |
+| `no-defense` | 1 | 1 | 0 |
+| `keyword` | 1 | 0.25 | 0 |
+| `LP-only` | 1 | 1 | 0 |
+| `probe-only` | 1 | 1 | 0 |
+| `gateway-only` | 1 | 0 | 0 |
+| `full-stack` | 1 | 0 | 0 |
+
+Keyword ASR is 2 of 8, which is within the 0.30 cap. The misses are the quotation-only instruction (`context-gap`) and the approval-shaped page. Keyword FPR is 0, down from 0.50 on the Week 5 screen. `gateway-only` and `full-stack` stay at ASR 0. A fourth base64 wrap is outside the depth bound and is covered by a unit test, not by this suite.
 
 ### Optional CPU model
 
@@ -388,10 +417,12 @@ src/smaip/agents/      planner, specialists, and LangGraph roles
 src/smaip/gateway/     allowlists, schemas, audit, hooks, approval
 src/smaip/probes/      keyword hook, linear probe, mock probe, Qwen stub
 src/smaip/clients/     Codex client stub
-src/smaip/eval/        ablation harness and the Week 3, Week 4, and Week 5 suites
+src/smaip/eval/        ablation harness and the Week 3, Week 4, Week 5, and Week 6 suites
 src/smaip/fixture_data/vendors/   Acme, Northwind, Helix
 src/smaip/fixture_data/week5/     original indirect-injection pages
+src/smaip/fixture_data/week6/     Week 6 attacks and hard negatives
 docs/TESTING.md        what each make weekN gate covers
+docs/ATTACK_TAXONOMY.md  families, instruction context, decode bound
 ```
 
 ## Security invariants
@@ -407,6 +438,6 @@ docs/TESTING.md        what each make weekN gate covers
 
 ## What this tree does not do
 
-The default Hugging Face and vLLM model names are stubs. `QwenActivationProbe` still refuses `Qwen/Qwen2.5-3B`. The optional CPU path is `Qwen/Qwen2.5-0.5B-Instruct` behind `SMAIP_HF_CPU`, and it stays off in CI. The Codex client is still a stub. There is no GPU path. AgentDojo, InjecAgent, and BIPIA are described in `DATA.md` and are not vendored. The Week 5 pages are original. The fixed probes are stand-ins so the ablation table runs offline. They are not the trained probes from the papers in `PRIOR_ART.md`.
+The default Hugging Face and vLLM model names are stubs. `QwenActivationProbe` still refuses `Qwen/Qwen2.5-3B`. The optional CPU path is `Qwen/Qwen2.5-0.5B-Instruct` behind `SMAIP_HF_CPU`, and it stays off in CI. The Codex client is still a stub. There is no GPU path. AgentDojo, InjecAgent, and BIPIA are described in `DATA.md` and are not vendored. The Week 5 and Week 6 pages are original. `LP-only` and `probe-only` are stubs until Week 7. They are stand-ins so the ablation table runs offline. They are not the trained probes from the papers in `PRIOR_ART.md`.
 
 The novelty of this scaffold is the composition of serving, privilege-separated agents, and the gateway, plus the joint measurement of those layers. It is not a new attack detector.

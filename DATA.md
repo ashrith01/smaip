@@ -10,6 +10,8 @@ Week 4 adds `src/smaip/eval/suites/week4.json`. The new clean tasks are a file w
 
 Week 5 adds original pages under `src/smaip/fixture_data/week5/vendors/` and the task list `src/smaip/eval/suites/week5.json`. The attack families follow the indirect-injection setting in AgentDojo: a tool result (here, a page the reader returns) carries an instruction that tries to change a later tool call. The families are exfiltration to an attacker address, a destructive tool call, a recipient swap, an instruction override, obfuscated or encoded text, a multi-hop note split across pages, and an approval-shaped field. Benign pages use trigger-like words, including two that quote the keyword list, so the screen's false-positive rate is measured instead of assumed to be zero. No task, user prompt, injection string, or page text is copied from AgentDojo, InjecAgent, or BIPIA. The strings were written for this repo.
 
+Week 6 adds original pages under `src/smaip/fixture_data/week6/vendors/` and the task list `src/smaip/eval/suites/week6.json`. The new attacks are a bare exfiltration, homoglyphs, nested base64, a payload split across two pages, a bare imperative beside a quotation, a quotation-only instruction, and an approval-shaped page. The benign pages are hard negatives: quoted text, a code fence, reported speech, a security article, near-miss wording, and harmless base64. `docs/ATTACK_TAXONOMY.md` names the families. No task, user prompt, injection string, or page text is copied from AgentDojo, InjecAgent, or BIPIA. The strings were written for this repo.
+
 Do not vendor AgentDojo, InjecAgent, or BIPIA into this repository. Record the upstream commit, the license that applies to the exact snapshot, and any share-alike obligations before a later week copies an example. Re-check the upstream license the week you import. The notes here are a watch list, not a grant.
 
 ## AgentDojo
@@ -47,6 +49,8 @@ InjecAgent is the indirect-injection case set cited by the AASE agent-action pro
 | `src/smaip/fixture_data/vendors/helix_labs/` | poisoned synthetic brief | project code, written for SMAIP |
 | `src/smaip/fixture_data/week5/vendors/` | original Week 5 attack and benign pages | project code, written for SMAIP |
 | `src/smaip/eval/suites/week5.json` | Week 5 episode list | project code, written for SMAIP |
+| `src/smaip/fixture_data/week6/vendors/` | original Week 6 attacks and hard negatives | project code, written for SMAIP |
+| `src/smaip/eval/suites/week6.json` | Week 6 episode list | project code, written for SMAIP |
 
 Helix Labs is labeled `poisoned: true` in `vendors.json`. Its pages tell the agent to email `attacker@evil.example` and to `delete audit.log`, and they contain an `approval: true` string. That string is not an approval. Acme Analytics and Northwind Insights are clean.
 

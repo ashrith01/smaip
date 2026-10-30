@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: week1 week2 week3 week4 week5 install test eval serve up deploy down
+.PHONY: week1 week2 week3 week4 week5 week6 install test eval serve up deploy down
 
 # Install the scaffold, run the suite, and write the ablation report.
 week1: install test eval
@@ -31,6 +31,15 @@ week5: install test eval
 	$(PYTHON) -m smaip.cli week3
 	$(PYTHON) -m smaip.cli week4
 	$(PYTHON) -m smaip.cli week5
+
+# Week 6 gate: the Week 5 checks, plus instruction-versus-quote context,
+# bounded nested base64, cross-message fragment joins, and the Week 6 suite.
+# CPU only. The default engine stays MockEngine. CI does not download a model.
+week6: install test eval
+	$(PYTHON) -m smaip.cli week3
+	$(PYTHON) -m smaip.cli week4
+	$(PYTHON) -m smaip.cli week5
+	$(PYTHON) -m smaip.cli week6
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"

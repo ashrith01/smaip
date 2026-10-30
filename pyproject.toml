@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smaip"
-version = "0.5.0"
-description = "Secure Multi-Agent Inference Platform — attack suite and optional CPU model (Week 5)"
+version = "0.6.0"
+description = "Secure Multi-Agent Inference Platform — instruction context, nested decode, Week 6 suite"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -37,6 +37,8 @@ smaip = [
     "fixture_data/vendors/*/*.md",
     "fixture_data/week5/vendors/*.json",
     "fixture_data/week5/vendors/*/*.md",
+    "fixture_data/week6/vendors/*.json",
+    "fixture_data/week6/vendors/*/*.md",
     "eval/suites/*.json",
 ]
 

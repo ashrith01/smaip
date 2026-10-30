@@ -53,6 +53,17 @@ jobs:
       - name: Install, pytest, earlier gates, and the Week 5 suite
         run: make week5 PYTHON=python
 
+  week6:
+    name: week6
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install, pytest, earlier gates, and the Week 6 suite
+        run: make week6 PYTHON=python
+
   docker-build:
     name: docker-build
     runs-on: ubuntu-latest

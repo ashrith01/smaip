@@ -1,6 +1,6 @@
 # Testing
 
-CPU-only. No GPU, no model download, and no API key. `make weekN` is the gate for that week. Later weeks include the earlier checks. CI on pull requests and on `main` runs the `week2`, `week3`, `week4`, `week5`, and `docker-build` jobs. The workflow has no secrets.
+CPU-only. No GPU, no model download, and no API key. `make weekN` is the gate for that week. Later weeks include the earlier checks. CI on pull requests and on `main` runs the `week2`, `week3`, `week4`, `week5`, `week6`, and `docker-build` jobs. The workflow has no secrets.
 
 ## make week1
 
@@ -29,7 +29,13 @@ Pytest includes `tests/test_week4_smoke.py`. That test builds the FastAPI app an
 
 The Week 4 checks, plus `python -m smaip.cli week5`. That writes `reports/week5_eval.json`, `reports/RESULTS.md`, `reports/FAILURES.md`, and one JSONL file per episode per ablation under `reports/traces/`. The suite is original indirect-injection pages (exfiltration, a destructive tool call, a recipient swap, an instruction override, obfuscated payloads, multi-hop pages, an approval-shaped page, and benign pages with trigger-like words). The CI job `week5` runs `make week5`. It does not set `SMAIP_HF_CPU` or `SMAIP_RUN_HF` and it does not download a model.
 
-The gate keeps utility at 1 on every ablation: the user-named digest email still lands. `no-defense` ASR is 1. `gateway-only` ASR is 0 and its FPR is 0. `keyword` ASR is 0.30 (3 of 10): the double-encoded blob, the split base64 halves, and the approval-shaped page. `keyword` FPR is 0.50 (2 of 4 benign episodes) because two benign pages quote the configured list. `full-stack` ASR is 0 and its FPR matches `keyword`, since the stack includes that screen. `LP-only` and `probe-only` do not score these phrases, so their ASR stays 1 and their FPR stays 0. `FAILURES.md` classifies each of those misses and false positives. `no-defense` is the baseline and is not listed there.
+The gate keeps utility at 1 on every ablation: the user-named digest email still lands. `no-defense` ASR is 1. `gateway-only` ASR is 0 and its FPR is 0. The keyword screen is the Week 6 screen. `keyword` ASR is 0.10 (1 of 10): the approval-shaped page. The double-encoded blob and the split base64 halves are caught. `keyword` FPR is 0. `full-stack` ASR is 0 and its FPR is 0. `LP-only` and `probe-only` are stubs until Week 7. They do not score these phrases, so their ASR stays 1 and their FPR stays 0. `no-defense` is the baseline and is not listed in the failure file this command writes when it is the last suite.
+
+## make week6
+
+The Week 5 checks, plus `python -m smaip.cli week6`. That writes `reports/week6_eval.json`, and it rewrites `reports/RESULTS.md`, `reports/FAILURES.md`, and the JSONL traces under `reports/traces/`. The suite adds original attacks (nested base64 inside the depth bound, halves split across pages, a bare imperative beside a quotation, a quotation-only instruction, an approval-shaped page) and hard negatives (quoted text, a code fence, reported speech, a security article, near-miss wording, harmless base64). The CI job `week6` runs `make week6`. It does not set `SMAIP_HF_CPU` or `SMAIP_RUN_HF` and it does not download a model.
+
+The gate keeps utility at 1 on every ablation. `no-defense` ASR is 1. `keyword` ASR is 0.25 (2 of 8), which is at most 0.30, and `keyword` FPR is 0. The keyword misses are `lark-quoted` and `lark-gate`. Nested and split payloads are caught. `gateway-only` and `full-stack` ASR are 0 and their FPR is 0. `LP-only` and `probe-only` stay at ASR 1 and FPR 0 until Week 7. `docs/ATTACK_TAXONOMY.md` defines the families. `RESULTS.md` includes the Week 5 before/after columns (keyword ASR 0.30 to 0.10, keyword FPR 0.50 to 0) and the Week 6 table.
 
 Pytest skips tests marked `hf` unless `SMAIP_RUN_HF=1`. That test loads `Qwen/Qwen2.5-0.5B-Instruct` on CPU and is not part of CI. The default engine remains `MockEngine`.
 
@@ -39,4 +45,4 @@ The CI job `docker-build` runs `docker build -t smaip:ci .`. It does not start t
 
 ## Reports
 
-`reports/*.json` and `reports/traces/` are gitignored. Regenerate a table with `make eval`, `python3 -m smaip.cli week3`, `python3 -m smaip.cli week4`, or `python3 -m smaip.cli week5`. Week 5 also rewrites `reports/RESULTS.md` and `reports/FAILURES.md`. Latency in those files is wall clock from that run.
+`reports/*.json` and `reports/traces/` are gitignored. Regenerate a table with `make eval`, `python3 -m smaip.cli week3`, `python3 -m smaip.cli week4`, `python3 -m smaip.cli week5`, or `python3 -m smaip.cli week6`. Week 5 and Week 6 each rewrite `reports/RESULTS.md` and `reports/FAILURES.md`. `make week6` runs Week 6 last, so the committed report is the Week 6 one. Latency in those files is wall clock from that run.

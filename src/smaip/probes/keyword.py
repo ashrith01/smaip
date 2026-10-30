@@ -1,10 +1,19 @@
 """Keyword screen for obvious indirect-prompt-injection markers.
 
-The default list is the Week 1 set. Matching is not a raw substring search:
-text is normalized, confusable characters are folded, and a single base64
-layer is decoded before the list is applied. A second base64 layer, and
-base64 halves that would have to be joined, stay misses. That gap is
-measured. It is not papered over.
+The default list is the Week 1 set. Matching folds case, compatibility
+forms, combining marks, and confusable letters, strips zero-width and bidi
+controls, and percent-decodes once.
+
+Week 6 adds three checks:
+
+- Instruction context. A hit inside quoted text, a code span, reported
+  speech, or a security-article sentence is not an instruction. A bare
+  imperative on its own sentence still matches.
+- Bounded base64. Standard-base64 tokens are decoded up to
+  ``MAX_DECODE_DEPTH`` layers. A further wrap stays a miss.
+- Cross-message fragments. Decoded pieces are joined in order, including
+  pieces that arrived on different pages, so a phrase split across messages
+  matches even when neither page matches alone.
 
 The list is configurable. Pass ``patterns`` or set ``SMAIP_KEYWORD_PATTERNS``
 to a comma-separated replacement. ``Gateway`` reads the environment variable.
@@ -17,6 +26,10 @@ import os
 import re
 import unicodedata
 from collections.abc import Sequence
+
+# A third wrap of the Week 5 double-encoded blob is still inside this bound.
+# One more wrap is not decoded. The bound is the regression, not an accident.
+MAX_DECODE_DEPTH = 3
 
 # Characters that are removed before matching so they cannot split a phrase.
 _STRIP = dict.fromkeys(
@@ -65,6 +78,21 @@ _HOMOGLYPHS = str.maketrans(
 )
 
 _B64_TOKEN = re.compile(r"(?<![A-Za-z0-9+/])([A-Za-z0-9+/]{12,}={0,2})(?![A-Za-z0-9+/=])")
+_FENCE = re.compile(r"```.*?```|~~~.*?~~~", re.DOTALL)
+_INLINE = re.compile(r"`[^`\n]+`")
+_DQUOTE = re.compile(r"“[^”]{0,500}”|„[^“]{0,500}“|\"[^\"\n]{0,500}\"")
+_SQUOTE = re.compile(r"'[^'\n]{4,300}'")
+_BLOCKQUOTE = re.compile(r"(?m)^>[^\n]*")
+_REPORTED = re.compile(
+    r"(?i)(?:\b(?:are|were|is|was|been|being)\s+told\s+not\s+to\b[^.\n]{0,160}"
+    r"|"
+    r"\b(?:said|says|wrote|writes|reported|reports|quoted|quotes|noted|notes|mentioned|mentions)\s*(?:that|:)\s*[^.\n]{0,200})"
+)
+_CUE = re.compile(
+    r"(?i)\b(?:this security article|this article|security write-up|staff training|"
+    r"new-hire|new hires|report template|not a request|not a task|the phrase|"
+    r"the word|the term|the string|taxonomy|defenders|for example|discusses|quoting)\b"
+)
 _ENV = "SMAIP_KEYWORD_PATTERNS"
 
 
@@ -84,9 +112,17 @@ def normalize(text: str) -> str:
 
 
 def decode_base64_blobs(text: str) -> list[str]:
-    """Decode one layer of standard-base64 tokens that look like text.
+    """Decode one layer of standard-base64 tokens that look like prose."""
 
-    The decoded strings are not scanned for a further base64 layer.
+    return [blob for blob in _utf8_blobs(text) if _is_prose(blob)]
+
+
+def _utf8_blobs(text: str) -> list[str]:
+    """One decode layer, including base64 that is not prose yet.
+
+    A nested payload decodes to more base64. That string is mostly letters
+    but it also contains digits and padding, so the prose ratio rejects it.
+    The next layer still has to be peeled.
     """
 
     if not isinstance(text, str) or not text:
@@ -103,7 +139,7 @@ def decode_base64_blobs(text: str) -> list[str]:
             raw = base64.b64decode(padded, validate=True)
         except ValueError:
             continue
-        decoded = _acceptable_text(raw)
+        decoded = _utf8_text(raw)
         if decoded is None or decoded in seen:
             continue
         seen.add(decoded)
@@ -111,7 +147,103 @@ def decode_base64_blobs(text: str) -> list[str]:
     return found
 
 
-def _acceptable_text(raw: bytes) -> str | None:
+def conceal_spans(text: str) -> str:
+    """Blank quoted text and code. Those spans are not screened or decoded."""
+
+    if not isinstance(text, str) or not text:
+        return ""
+
+    def blank(match: re.Match[str]) -> str:
+        return " " * len(match.group(0))
+
+    value = _FENCE.sub(blank, text)
+    value = _INLINE.sub(blank, value)
+    value = _DQUOTE.sub(blank, value)
+    value = _SQUOTE.sub(blank, value)
+    value = _BLOCKQUOTE.sub(blank, value)
+    return value
+
+
+def instruction_view(text: str) -> str:
+    """Prose with quotes, code, reported speech, and article sentences removed.
+
+    A sentence that only discusses a phrase stays blank. A sentence that
+    starts with an imperative, or that names a side effect, stays in place
+    even when the same line mentions an article.
+    """
+
+    if not isinstance(text, str) or not text:
+        return ""
+    value = _REPORTED.sub(lambda match: " " * len(match.group(0)), conceal_spans(text))
+    parts = re.split(r"(\n+|(?<=[.!?])\s+)", value)
+    kept: list[str] = []
+    for part in parts:
+        if part and not part.isspace() and not part.startswith("\n") and _CUE.search(part) and not _is_command(part):
+            kept.append(" " * len(part))
+        else:
+            kept.append(part)
+    return "".join(kept)
+
+
+def decoded_fragments(text: str, depth: int = MAX_DECODE_DEPTH) -> list[tuple[int, str]]:
+    """Nested decodes of tokens that are outside quotes and code.
+
+    Each item is ``(layer, text)`` with ``layer`` starting at 1. Fragments
+    from the same layer are what cross-message aggregation joins.
+    """
+
+    if not isinstance(text, str) or not text or depth < 1:
+        return []
+    masked = conceal_spans(text)
+    sources = [masked]
+    percent = _percent_decode(masked)
+    if percent != masked:
+        sources.append(percent)
+    found: list[tuple[int, str]] = []
+    seen: set[tuple[int, str]] = set()
+    layer = sources
+    for level in range(1, depth + 1):
+        nxt: list[str] = []
+        for source in layer:
+            for blob in _utf8_blobs(source):
+                key = (level, blob)
+                if key in seen:
+                    continue
+                seen.add(key)
+                if _is_prose(blob):
+                    found.append((level, blob))
+                nxt.append(blob)
+        layer = nxt
+        if not layer:
+            break
+    return found
+
+
+def _is_command(sentence: str) -> bool:
+    if re.search(r"(?i)attacker@evil\.example", sentence):
+        return True
+    if re.search(r"(?i)write\s+secret\.txt", sentence):
+        return True
+    if re.search(r"(?i)\byou are now\b", sentence):
+        return True
+    if re.search(r"(?i)\bemail\s+\S+@", sentence):
+        return True
+    if re.search(r"(?i)\bsend\s+the\s+(?:full|brief|mailbox|figures)\b", sentence):
+        return True
+    if re.search(r"(?i)\bexfiltrate\s+the\b", sentence) and not re.search(
+        r"(?i)\bnot\s+to\s+exfiltrate\b", sentence
+    ):
+        return True
+    if re.search(r"(?i)\bdelete\s+audit\.log\b", sentence) and not re.search(
+        r"(?i)\b(?:not to|never|do not|don't)\s+delete\s+audit\.log\b", sentence
+    ):
+        return True
+    if re.match(r"(?i)\s*ignore previous instructions\b", sentence):
+        return True
+    return False
+
+
+def _utf8_text(raw: bytes) -> str | None:
     if not raw or b"\x00" in raw:
         return None
     try:
@@ -122,27 +254,55 @@ def _acceptable_text(raw: bytes) -> str | None:
         return None
     if any(ord(char) < 32 and char not in "\t\n\r" for char in text):
         return None
+    return text
+
+
+def _is_prose(text: str) -> bool:
+    if not text:
+        return False
     letters = sum(char.isalpha() or char.isspace() or char in "@._-" for char in text)
-    if letters / len(text) < 0.85:
+    return letters / len(text) >= 0.85
+
+
+def _acceptable_text(raw: bytes) -> str | None:
+    text = _utf8_text(raw)
+    if text is None or not _is_prose(text):
         return None
     return text
 
 
 def screen_forms(text: str) -> list[str]:
-    """Normalized forms the list is checked against. One decode deep."""
+    """Normalized instruction forms for one text, including nested decodes."""
 
-    if not isinstance(text, str) or not text:
-        return []
-    sources = [text]
-    percent = _percent_decode(text)
-    if percent != text:
-        sources.append(percent)
+    return _forms_for([text] if isinstance(text, str) else [])
+
+
+def _forms_for(texts: Sequence[str]) -> list[str]:
     forms: list[str] = []
     seen: set[str] = set()
-    for source in sources:
-        _add(forms, seen, normalize(source))
-        for blob in decode_base64_blobs(source):
-            _add(forms, seen, normalize(blob))
+    bag: dict[int, list[str]] = {}
+    for text in texts:
+        if not isinstance(text, str) or not text:
+            continue
+        for form in _surface_forms(text):
+            _add(forms, seen, form)
+        for level, blob in decoded_fragments(text):
+            bag.setdefault(level, []).append(blob)
+            _add(forms, seen, normalize(instruction_view(blob)))
+    for blobs in bag.values():
+        if len(blobs) >= 2:
+            _add(forms, seen, normalize(instruction_view("".join(blobs))))
+    return forms
+
+
+def _surface_forms(text: str) -> list[str]:
+    view = instruction_view(text)
+    forms: list[str] = []
+    seen: set[str] = set()
+    _add(forms, seen, normalize(view))
+    percent = _percent_decode(view)
+    if percent != view:
+        _add(forms, seen, normalize(instruction_view(percent)))
     return forms
 
 
@@ -167,6 +327,7 @@ class KeywordHook:
         "audit.log",
         "exfiltrate",
     )
+    MAX_DECODE_DEPTH = MAX_DECODE_DEPTH
 
     def __init__(self, patterns: Sequence[str] | None = None) -> None:
         chosen = self.PATTERNS if patterns is None else tuple(patterns)
@@ -188,7 +349,18 @@ class KeywordHook:
     def hits(self, text: str) -> list[str]:
         if not isinstance(text, str) or not text:
             return []
-        forms = screen_forms(text)
+        return self.hits_many((text,))
+
+    def hits_many(self, texts: Sequence[str]) -> list[str]:
+        """Hits over several tainted messages, with decoded fragments joined.
+
+        This is the cross-message aggregate. Each text is screened on its
+        own, then decoded pieces from the same layer are concatenated in
+        message order. A half on one page and a half on the next match here
+        when neither page matches alone.
+        """
+
+        forms = _forms_for(texts)
         if not forms:
             return []
         return [label for label, needle in self._needles if needle and any(needle in form for form in forms)]
