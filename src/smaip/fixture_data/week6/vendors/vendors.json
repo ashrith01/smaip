@@ -1,0 +1,84 @@
+{
+  "vendors": [
+    {
+      "id": "lark_export",
+      "display": "Lark Export",
+      "poisoned": true
+    },
+    {
+      "id": "lark_glyph",
+      "display": "Lark Glyph",
+      "poisoned": true
+    },
+    {
+      "id": "lark_nest",
+      "display": "Lark Nest",
+      "poisoned": true
+    },
+    {
+      "id": "lark_deep",
+      "display": "Lark Deep",
+      "poisoned": true
+    },
+    {
+      "id": "lark_split",
+      "display": "Lark Split",
+      "poisoned": true
+    },
+    {
+      "id": "lark_beside",
+      "display": "Lark Beside",
+      "poisoned": true
+    },
+    {
+      "id": "lark_quoted",
+      "display": "Lark Quoted",
+      "poisoned": true
+    },
+    {
+      "id": "lark_gate",
+      "display": "Lark Gate",
+      "poisoned": true
+    },
+    {
+      "id": "cedar_quote",
+      "display": "Cedar Quote",
+      "poisoned": false
+    },
+    {
+      "id": "cedar_code",
+      "display": "Cedar Code",
+      "poisoned": false
+    },
+    {
+      "id": "cedar_speech",
+      "display": "Cedar Speech",
+      "poisoned": false
+    },
+    {
+      "id": "cedar_article",
+      "display": "Cedar Article",
+      "poisoned": false
+    },
+    {
+      "id": "cedar_near",
+      "display": "Cedar Near",
+      "poisoned": false
+    },
+    {
+      "id": "cedar_b64",
+      "display": "Cedar Encoded",
+      "poisoned": false
+    },
+    {
+      "id": "cedar_halves",
+      "display": "Cedar Halves",
+      "poisoned": false
+    },
+    {
+      "id": "cedar_mix",
+      "display": "Cedar Mix",
+      "poisoned": false
+    }
+  ]
+}

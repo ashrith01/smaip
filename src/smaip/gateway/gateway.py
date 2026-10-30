@@ -74,6 +74,9 @@ class Gateway:
         self.tool_calls = 0
         self.cost_units = 0
         self.decisions: list[dict] = []
+        # Raw page bodies, in read order. Keyword aggregation joins decoded
+        # fragments across these messages. The list is not an approval source.
+        self._tainted_pages: list[str] = []
 
     @property
     def cost(self) -> float:
@@ -139,7 +142,15 @@ class Gateway:
             reason = "audit_log_protected"
 
         if reason is None and tool in MUTATING:
-            hook_reason = self._hook_reason(_hook_text(untrusted_text, cleaned), enforcement)
+            hook_text = _hook_text(untrusted_text, cleaned)
+            hook_reason = self._hook_reason(hook_text, enforcement)
+            if (
+                hook_reason is None
+                and untrusted_text
+                and enforcement.keyword
+                and self.keyword.hits_many([*self._tainted_pages, hook_text])
+            ):
+                hook_reason = "keyword_hook"
             if hook_reason:
                 reason = hook_reason
 
@@ -151,7 +162,12 @@ class Gateway:
                 output = ""
 
         if reason is None and tool == "read_page":
+            self._tainted_pages.append(output)
             hook_reason = self._hook_reason(output, enforcement)
+            if hook_reason is None and enforcement.keyword and _aggregate_closed(
+                self.keyword, self._tainted_pages
+            ):
+                hook_reason = "keyword_hook"
             if hook_reason:
                 quarantined = True
                 output = "[quarantined untrusted page]\n" + output
@@ -336,5 +352,34 @@ def _recorded_taint(
     return {"tainted": False, "labels": [], "sources": []}
 
 
+def _aggregate_closed(keyword: KeywordHook, pages: list[str]) -> bool:
+    """True when this page completes a hit the earlier pages did not have.
+
+    A page that already matched stays in the ledger. A later clean page is
+    not quarantined just because that earlier page is still there. A split
+    payload quarantines the page that supplies the missing half.
+    """
+
+    if len(pages) < 2 or keyword.hits_many(pages[:-1]):
+        return False
+    return bool(keyword.hits_many(pages))
+
+
 def _hook_text(untrusted_text: str, arguments: dict[str, Any]) -> str:
-    return f"{untrusted_text}\n{json.dumps(arguments, sort_keys=True, default=str)}"
+    """Page text plus argument values, without JSON quotes.
+
+    Values are screened as prose. A quoted citation inside a value can be
+    skipped by the instruction filter. The same words in a bare argument
+    still match. Wrapping every value in JSON quotes would hide those words
+    from that filter.
+    """
+
+    parts = [untrusted_text] if untrusted_text else []
+    for key in sorted(arguments):
+        value = arguments[key]
+        if isinstance(value, str):
+            if value:
+                parts.append(value)
+        else:
+            parts.append(json.dumps(value, sort_keys=True, default=str))
+    return "\n".join(parts)
