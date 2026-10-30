@@ -11,6 +11,8 @@ build/
 venv/
 .env
 reports/*.json
+reports/*.tar.gz
 reports/traces/
+artifacts/
 .coverage
 htmlcov/

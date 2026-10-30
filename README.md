@@ -409,20 +409,57 @@ SMAIP_HF_CPU=1 SMAIP_RUN_HF=1 python3 -m pytest -m hf
 
 `tests/test_hf.py` marks that completion test with `hf`. Pytest skips it unless `SMAIP_RUN_HF=1`. `make week5` and CI leave both variables unset. The Docker image does not install the extra.
 
+## 12. Week 7
+
+Week 7 prepares a single-GPU run. It does not provision a machine. CI does not download weights. The Week 1–6 commands still pin the phrase stubs, so their gates stay the published numbers. The live gateway loads trained probes when `artifacts/probes/linear.json` and `artifacts/probes/activation.json` exist, and it falls back to `LinearProbe` and `MockActivationProbe` when they do not. `SMAIP_PROBES=stub` forces the stubs.
+
+```bash
+SMAIP_PROBE_BACKEND=mock make week7-cpu
+```
+
+That is the CPU smoke: a tiny subset, the model id `Qwen/Qwen2.5-0.5B-Instruct`, and a deterministic token-hash stand-in for the residual stream. It writes `reports/RESULTS_week7.md` and `reports/week7_eval.json`. The benchmark command exits 0 and records a skip when CUDA or vLLM is missing. CI runs this smoke and does not download weights.
+
+The committed `reports/RESULTS_week7.md` is a real CPU run of that tiny subset on `Qwen/Qwen2.5-0.5B-Instruct`, not the mock smoke and not a 3B result. The test split there is four records, so the AUROC is a coarse check. The GPU command is the full measurement.
+
+With the Hugging Face extra installed, the same target collects real residuals from the 0.5B checkpoint:
+
+```bash
+python3 -m pip install -e ".[dev,hf]"
+make week7-cpu
+```
+
+The GPU command is for a box you already created. `docs/GPU_RUNBOOK.md` is the sizing note (one GPU, 24 GB or more, no cluster), the steps, and the teardown reminder.
+
+```bash
+bash scripts/gpu/bootstrap.sh
+source .venv/bin/activate
+set -a && source .venv/smaip-gpu.env && set +a
+make week7-gpu
+```
+
+`make week7-gpu` collects activations at configurable layers (every block, unless `--layers` or `SMAIP_PROBE_LAYERS` is set), trains a logistic probe per layer, keeps the best layer and a threshold, remeasures the six ablations, runs the HF versus vLLM benchmark, and tars `reports/week7-gpu-results.tar.gz`. The default model is `Qwen/Qwen2.5-3B-Instruct`, overridable with `SMAIP_PROBE_MODEL` or `--model`.
+
+The corpus is the Week 5 and Week 6 pages plus `src/smaip/fixture_data/week7/tool_outputs.jsonl`. The split is a deterministic 60/20/20 cut stratified by label. The linear probe pools the last non-padding residual. The activation probe mean-pools it. Artifacts store the weights, the chosen layer, the threshold, and AUROC, F1, and FPR at a target true-positive rate of 0.95.
+
+`QwenActivationProbe` still raises `ProbeWeightsUnavailable` for `Qwen/Qwen2.5-3B`. The trained path is `TrainedProbe`. The gateway loads it when the artifact files are present.
+
 ## Layout
 
 ```text
 src/smaip/serving/     FastAPI, engines, exact-prompt cache, metrics
 src/smaip/agents/      planner, specialists, and LangGraph roles
 src/smaip/gateway/     allowlists, schemas, audit, hooks, approval
-src/smaip/probes/      keyword hook, linear probe, mock probe, Qwen stub
+src/smaip/probes/      keyword hook, linear probe, mock probe, Qwen stub, trained probes
 src/smaip/clients/     Codex client stub
-src/smaip/eval/        ablation harness and the Week 3, Week 4, Week 5, and Week 6 suites
+src/smaip/eval/        ablation harness and the Week 3 through Week 7 suites
 src/smaip/fixture_data/vendors/   Acme, Northwind, Helix
 src/smaip/fixture_data/week5/     original indirect-injection pages
 src/smaip/fixture_data/week6/     Week 6 attacks and hard negatives
+src/smaip/fixture_data/week7/     original labeled tool outputs
+scripts/gpu/           bootstrap for a fresh Ubuntu GPU box
 docs/TESTING.md        what each make weekN gate covers
 docs/ATTACK_TAXONOMY.md  families, instruction context, decode bound
+docs/GPU_RUNBOOK.md    single-GPU sizing, steps, and teardown
 ```
 
 ## Security invariants
@@ -434,10 +471,10 @@ docs/ATTACK_TAXONOMY.md  families, instruction context, decode bound
 - Summarize, digest send, and digest write results copy page taint, page sources, and the max probe score from the reads they were built from.
 - `audit.log` cannot be written or deleted while gateway protection is on. The gateway's own audit list is a separate object, not that file.
 - The Codex client stub raises `NetworkRefused` and does not open a socket.
-- `QwenActivationProbe` raises `ProbeWeightsUnavailable` for `Qwen/Qwen2.5-3B`. The default probe is `MockActivationProbe`.
+- `QwenActivationProbe` raises `ProbeWeightsUnavailable` for `Qwen/Qwen2.5-3B`. The default probe is `MockActivationProbe` unless `artifacts/probes/` holds a trained probe.
 
 ## What this tree does not do
 
-The default Hugging Face and vLLM model names are stubs. `QwenActivationProbe` still refuses `Qwen/Qwen2.5-3B`. The optional CPU path is `Qwen/Qwen2.5-0.5B-Instruct` behind `SMAIP_HF_CPU`, and it stays off in CI. The Codex client is still a stub. There is no GPU path. AgentDojo, InjecAgent, and BIPIA are described in `DATA.md` and are not vendored. The Week 5 and Week 6 pages are original. `LP-only` and `probe-only` are stubs until Week 7. They are stand-ins so the ablation table runs offline. They are not the trained probes from the papers in `PRIOR_ART.md`.
+The default Hugging Face and vLLM model names on the API are stubs. `QwenActivationProbe` still refuses `Qwen/Qwen2.5-3B`. The optional CPU completion path is `Qwen/Qwen2.5-0.5B-Instruct` behind `SMAIP_HF_CPU`, and it stays off in CI. The Codex client is still a stub. The Week 7 GPU path is opt-in: `make week7-gpu` on a machine you already have, documented in `docs/GPU_RUNBOOK.md`. CI does not take that path and does not download a model. AgentDojo, InjecAgent, and BIPIA are described in `DATA.md` and are not vendored. The Week 5 and Week 6 pages and the Week 7 tool outputs are original. `LP-only` and `probe-only` in the Week 1–6 suites stay the phrase stubs so those gates remain stable. When `artifacts/probes/` is present, the live gateway uses the trained logistic probes instead. They are fit on this repo's pages and tool outputs. They are not the trained probes from the papers in `PRIOR_ART.md`.
 
 The novelty of this scaffold is the composition of serving, privilege-separated agents, and the gateway, plus the joint measurement of those layers. It is not a new attack detector.

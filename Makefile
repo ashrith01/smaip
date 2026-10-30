@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: week1 week2 week3 week4 week5 week6 install test eval serve up deploy down
+.PHONY: week1 week2 week3 week4 week5 week6 week7-cpu week7-gpu install install-gpu test eval serve up deploy down
 
 # Install the scaffold, run the suite, and write the ablation report.
 week1: install test eval
@@ -41,8 +41,39 @@ week6: install test eval
 	$(PYTHON) -m smaip.cli week5
 	$(PYTHON) -m smaip.cli week6
 
+# Week 7 CPU path: tiny subset. The default model id is the 0.5B instruct
+# checkpoint. SMAIP_PROBE_BACKEND=mock skips the download (the CI job).
+# Unset that variable, with the hf extra installed, to collect real residuals.
+week7-cpu: install
+	export SMAIP_PROBE_MODEL="$${SMAIP_PROBE_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"; \
+	export SMAIP_PROBE_SUBSET="$${SMAIP_PROBE_SUBSET:-tiny}"; \
+	$(PYTHON) -m smaip.cli week7 --subset tiny --model "$$SMAIP_PROBE_MODEL" && \
+	$(PYTHON) -m smaip.cli bench
+
+# Week 7 GPU path: full subset, Qwen2.5-3B-Instruct, then the vLLM comparison.
+# The Hugging Face extra is required. The vLLM extra is attempted; if it does
+# not install, bench exits 0 and records a skip. The tarball is the artifact
+# to copy off the box before teardown.
+week7-gpu:
+	$(PYTHON) -m pip install -e ".[dev,hf]"
+	export SMAIP_PROBE_MODEL="$${SMAIP_PROBE_MODEL:-Qwen/Qwen2.5-3B-Instruct}"; \
+	export SMAIP_PROBE_DEVICE=cuda; \
+	export SMAIP_PROBE_SUBSET=full; \
+	$(PYTHON) -m smaip.cli week7 --subset full --backend hf --device cuda --model "$$SMAIP_PROBE_MODEL" && \
+	{ $(PYTHON) -m pip install -e ".[gpu]" || echo "vLLM extra did not install; the benchmark will skip."; } && \
+	$(PYTHON) -m smaip.cli bench --model "$$SMAIP_PROBE_MODEL" && \
+	mkdir -p reports && \
+	tar -czf reports/week7-gpu-results.tar.gz \
+		reports/RESULTS_week7.md \
+		reports/week7_eval.json \
+		reports/week7_bench.json \
+		artifacts/probes
+
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
+
+install-gpu:
+	$(PYTHON) -m pip install -e ".[dev,hf,gpu]"
 
 test:
 	$(PYTHON) -m pytest

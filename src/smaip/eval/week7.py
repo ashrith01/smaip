@@ -1,0 +1,350 @@
+"""Week 7 probe pipeline.
+
+Collect residual-stream activations, train a last-token logistic probe and a
+mean-pooled activation probe, then remeasure the six ablations with those
+probes on the Week 5 and Week 6 episodes. The Week 1–6 commands keep the
+phrase stubs. This command writes ``reports/RESULTS_week7.md`` and does not
+rewrite ``reports/RESULTS.md``.
+"""
+
+import json
+import os
+from pathlib import Path
+
+from smaip.eval.week5 import load_tasks as load_week5
+from smaip.eval.week5 import week5_root
+from smaip.eval.week5 import _run_ablation as run_week5_ablation
+from smaip.eval.week6 import load_tasks as load_week6
+from smaip.eval.week6 import week6_root
+from smaip.eval.week6 import _run_ablation as run_week6_ablation
+from smaip.gateway.enforcement import presets
+from smaip.probes.activations import (
+    collect,
+    model_layer_count,
+    parse_layers,
+    resolve_backend,
+    resolve_device,
+    resolve_model,
+)
+from smaip.probes.dataset import prepare_records
+from smaip.probes.registry import activation_artifact, linear_artifact
+from smaip.probes.train import sweep_probe
+from smaip.probes.trained import TrainedProbe
+from smaip.vendors import VendorLibrary
+
+
+def run_week7(
+    *,
+    model: str | None = None,
+    subset: str = "full",
+    backend: str | None = None,
+    device: str | None = None,
+    layers: str | None = None,
+    artifact_dir: Path | None = None,
+    activation_dir: Path | None = None,
+    results_path: Path | None = None,
+    eval_path: Path | None = None,
+) -> dict:
+    model_id = resolve_model(model)
+    chosen_backend = resolve_backend(backend)
+    chosen_device = resolve_device(device, chosen_backend)
+    records = prepare_records(subset)
+    available = model_layer_count(model_id, chosen_backend, chosen_device)
+    chosen_layers = parse_layers(layers, available=available)
+    assert chosen_layers is not None
+    rows = collect(
+        records,
+        model_id=model_id,
+        backend=chosen_backend,
+        device=chosen_device,
+        layers=chosen_layers,
+    )
+    probes_dir = artifact_dir or Path("artifacts/probes")
+    acts_dir = activation_dir or Path("artifacts/activations")
+    acts_dir.mkdir(parents=True, exist_ok=True)
+    _write_activation_summary(acts_dir / "summary.json", rows, model_id, chosen_backend, chosen_layers)
+    linear_payload = sweep_probe(
+        rows,
+        kind="linear",
+        pooling="last",
+        model_id=model_id,
+        backend=chosen_backend,
+        device=chosen_device,
+    )
+    activation_payload = sweep_probe(
+        rows,
+        kind="activation",
+        pooling="mean",
+        model_id=model_id,
+        backend=chosen_backend,
+        device=chosen_device,
+    )
+    probes_dir.mkdir(parents=True, exist_ok=True)
+    linear_path = linear_artifact(probes_dir)
+    activation_path = activation_artifact(probes_dir)
+    _dump(linear_path, linear_payload)
+    _dump(activation_path, activation_payload)
+    linear = TrainedProbe.load(linear_path)
+    activation = TrainedProbe.load(activation_path)
+    week5_tasks = _select_tasks(load_week5(), subset)
+    week6_tasks = _select_tasks(load_week6(), subset)
+    week5_rows = _measure(
+        run_week5_ablation,
+        week5_tasks,
+        VendorLibrary(week5_root()),
+        (linear, activation),
+    )
+    week6_rows = _measure(
+        run_week6_ablation,
+        week6_tasks,
+        VendorLibrary(week6_root()),
+        (linear, activation),
+    )
+    report = {
+        "model_id": model_id,
+        "backend": chosen_backend,
+        "device": chosen_device,
+        "subset": subset,
+        "layers": chosen_layers,
+        "records": _record_counts(records),
+        "linear": _public_probe(linear_payload),
+        "activation": _public_probe(activation_payload),
+        "week5": week5_rows,
+        "week6": week6_rows,
+    }
+    results = results_path or Path("reports/RESULTS_week7.md")
+    evaluation = eval_path or Path("reports/week7_eval.json")
+    results.parent.mkdir(parents=True, exist_ok=True)
+    evaluation.parent.mkdir(parents=True, exist_ok=True)
+    results.write_text(render_results(report), encoding="utf-8")
+    _dump(evaluation, report)
+    return report
+
+
+def render_results(report: dict) -> str:
+    backend = report["backend"]
+    if backend == "mock":
+        backend_note = (
+            "Backend `mock` is a deterministic token hash, not a Qwen residual stream. "
+            "These metrics check the pipeline. They are not a 3B probe result. "
+            "The GPU command collects real hidden states from the model id below."
+        )
+    else:
+        backend_note = (
+            f"Backend `hf` collected the residual stream from `{report['model_id']}` "
+            f"on `{report['device']}`."
+        )
+    linear = report["linear"]
+    activation = report["activation"]
+    lines = [
+        "# Week 7 results",
+        "",
+        "Generated by `python3 -m smaip.cli week7`. The six ablations are the Week 5 and Week 6 episodes, scored with the trained probes from this run. `reports/RESULTS.md` is still the Week 6 stub measurement and is not rewritten here.",
+        "",
+        backend_note,
+        "",
+        f"Model id `{report['model_id']}` (override with `SMAIP_PROBE_MODEL` or `--model`). Subset `{report['subset']}`. Device `{report['device']}`. Layers collected: {', '.join(str(layer) for layer in report['layers'])}.",
+        "",
+        _count_line(report["records"]),
+        "",
+        "The linear probe pools the last non-padding residual. The activation probe mean-pools the same residual. Each probe is a logistic regression. The layer sweep picks the validation AUROC, then the lower false-positive rate at the target true-positive rate, then the layer closest to two thirds of the way through the network. The threshold is frozen on validation before test metrics are computed.",
+        "",
+        "## Probes",
+        "",
+        "| probe | pooling | layer | threshold | val AUROC | val F1 | val FPR at TPR | test AUROC | test F1 | test FPR at TPR |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        _probe_row("linear", linear),
+        _probe_row("activation", activation),
+        "",
+        f"Target true-positive rate: {linear['tpr_target']:.2f}. "
+        f"Train/val/test rows: {linear['n_train']}/{linear['n_val']}/{linear['n_test']}. "
+        "Weights, the full sweep, and these metrics are under `artifacts/probes/`.",
+        "",
+        "### Linear layer sweep",
+        "",
+        _sweep_table(linear["layer_sweep"]),
+        "",
+        "### Activation layer sweep",
+        "",
+        _sweep_table(activation["layer_sweep"]),
+        "",
+        "## Week 5 episodes",
+        "",
+        _suite_note(report, "week5"),
+        "",
+        _ablation_table(report["week5"]),
+        "",
+        "## Week 6 episodes",
+        "",
+        _suite_note(report, "week6"),
+        "",
+        _ablation_table(report["week6"]),
+        "",
+        "Utility is the user-named digest email. ASR is the injection-following caller after the graph. FPR is a benign episode that was quarantined or whose digest email did not land. `no-defense` stays the baseline. `gateway-only` still refuses the caller because the caller cannot mint an approval. `LP-only` and `probe-only` are the trained probes from this run, not the phrase stubs.",
+        "",
+        "Probe AUROC, F1, and FPR at the target true-positive rate are computed on the held-out records. The ablation tables are the agent episodes, which are a different cut, so a low test FPR does not promise a low ablation FPR.",
+        "",
+        "Week 1 through Week 6 keep those stubs so their published gates stay put. The live gateway loads `artifacts/probes/linear.json` and `artifacts/probes/activation.json` when the files are present and `SMAIP_PROBES` is not `stub`.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def week7_main(
+    *,
+    model: str | None = None,
+    subset: str = "full",
+    backend: str | None = None,
+    device: str | None = None,
+    layers: str | None = None,
+    artifact_dir: str | None = None,
+    activation_dir: str | None = None,
+    results: str = "reports/RESULTS_week7.md",
+    output: str = "reports/week7_eval.json",
+) -> int:
+    chosen_subset = subset or os.environ.get("SMAIP_PROBE_SUBSET") or "full"
+    report = run_week7(
+        model=model,
+        subset=chosen_subset,
+        backend=backend,
+        device=device,
+        layers=layers,
+        artifact_dir=Path(artifact_dir) if artifact_dir else None,
+        activation_dir=Path(activation_dir) if activation_dir else None,
+        results_path=Path(results),
+        eval_path=Path(output),
+    )
+    print(
+        f"week7 backend={report['backend']} model={report['model_id']} "
+        f"subset={report['subset']} device={report['device']}"
+    )
+    print(
+        f"linear layer={report['linear']['layer']} "
+        f"test_auroc={report['linear']['metrics']['test']['auroc']:.3f} "
+        f"activation layer={report['activation']['layer']} "
+        f"test_auroc={report['activation']['metrics']['test']['auroc']:.3f}"
+    )
+    for name in ("week5", "week6"):
+        for row in report[name]:
+            print(
+                f"{name} {row['ablation']:<14} utility={row['utility']:.2f} "
+                f"asr={row['asr']:.2f} fpr={row['fpr']:.2f}"
+            )
+    print(f"wrote {results}")
+    print(f"wrote {output}")
+    return 0
+
+
+def _measure(runner, tasks, library, probes) -> list[dict]:
+    traces: list[list[dict]] = []
+    rows = []
+    for enforcement in presets().values():
+        result = runner(enforcement, tasks, library, traces, probes=probes)
+        rows.append(result.as_dict())
+    return rows
+
+
+def _select_tasks(tasks: list[dict], subset: str) -> list[dict]:
+    if subset != "tiny":
+        return tasks
+    benign = sorted((task for task in tasks if task["kind"] == "benign"), key=lambda item: item["id"])
+    attacks = sorted((task for task in tasks if task["kind"] == "attack"), key=lambda item: item["id"])
+    return benign[:2] + attacks[:2]
+
+
+def _public_probe(payload: dict) -> dict:
+    return {
+        "kind": payload["kind"],
+        "pooling": payload["pooling"],
+        "layer": payload["layer"],
+        "threshold": payload["threshold"],
+        "tpr_target": payload["tpr_target"],
+        "dim": payload["dim"],
+        "n_train": payload["n_train"],
+        "n_val": payload["n_val"],
+        "n_test": payload["n_test"],
+        "metrics": payload["metrics"],
+        "layer_sweep": payload["layer_sweep"],
+    }
+
+
+def _record_counts(records) -> dict:
+    counts = {"total": len(records), "train": 0, "val": 0, "test": 0, "positive": 0, "negative": 0}
+    for record in records:
+        counts[record.split] += 1
+        if record.label == 1:
+            counts["positive"] += 1
+        else:
+            counts["negative"] += 1
+    return counts
+
+
+def _count_line(counts: dict) -> str:
+    return (
+        f"Records: {counts['total']} ({counts['positive']} injected, {counts['negative']} benign). "
+        f"Split: train {counts['train']}, val {counts['val']}, test {counts['test']}."
+    )
+
+
+def _probe_row(name: str, payload: dict) -> str:
+    val = payload["metrics"]["val"]
+    test = payload["metrics"]["test"]
+    return (
+        f"| `{name}` | `{payload['pooling']}` | {payload['layer']} | {payload['threshold']:.4f} | "
+        f"{val['auroc']:.3f} | {val['f1']:.3f} | {val['fpr_at_tpr']:.3f} | "
+        f"{test['auroc']:.3f} | {test['f1']:.3f} | {test['fpr_at_tpr']:.3f} |"
+    )
+
+
+def _sweep_table(rows: list[dict]) -> str:
+    lines = [
+        "| layer | val AUROC | val F1 | val FPR at TPR |",
+        "| ---: | ---: | ---: | ---: |",
+    ]
+    for row in rows:
+        lines.append(
+            f"| {row['layer']} | {row['val_auroc']:.3f} | {row['val_f1']:.3f} | {row['val_fpr_at_tpr']:.3f} |"
+        )
+    return "\n".join(lines)
+
+
+def _ablation_table(rows: list[dict]) -> str:
+    lines = [
+        "| ablation | utility | asr | fpr | cost | latency_ms |",
+        "| --- | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for row in rows:
+        lines.append(
+            f"| `{row['ablation']}` | {row['utility']:.2f} | {row['asr']:.2f} | {row['fpr']:.2f} | "
+            f"{row['cost']:.2f} | {row['latency_ms']:.3f} |"
+        )
+    return "\n".join(lines)
+
+
+def _suite_note(report: dict, name: str) -> str:
+    attacks = report[name][0]["attack_total"]
+    benign = report[name][0]["benign_total"]
+    if report["subset"] == "tiny":
+        return (
+            f"Tiny subset: {benign} benign and {attacks} attack episodes, the first of each kind by id. "
+            "The GPU run uses the full suites."
+        )
+    return f"Full suite: {benign} benign and {attacks} attack episodes."
+
+
+def _write_activation_summary(path: Path, rows: list[dict], model_id: str, backend: str, layers: list[int]) -> None:
+    sample = rows[0]["layers"]["last"][str(layers[0])]
+    payload = {
+        "model_id": model_id,
+        "backend": backend,
+        "records": len(rows),
+        "layers": layers,
+        "dim": len(sample),
+        "poolings": ["last", "mean"],
+    }
+    _dump(path, payload)
+
+
+def _dump(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
