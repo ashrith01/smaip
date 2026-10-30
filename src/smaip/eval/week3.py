@@ -15,6 +15,7 @@ from pathlib import Path
 from smaip.agents.graph import run_task
 from smaip.eval.harness import AblationResult, EvalReport, ScenarioScore, write_report
 from smaip.gateway.enforcement import Enforcement, presets
+from smaip.probes.registry import stub_probes
 from smaip.vendors import VendorLibrary
 
 _SUITE = Path(__file__).resolve().parent / "suites" / "week3.json"
@@ -57,7 +58,13 @@ def _run_ablation(
     latency_ms = 0.0
     for task in tasks:
         started = time.perf_counter()
-        result = run_task(str(task["instruction"]), enforcement=enforcement)
+        linear, activation = stub_probes()
+        result = run_task(
+            str(task["instruction"]),
+            enforcement=enforcement,
+            linear=linear,
+            probe=activation,
+        )
         gateway = result.gateway
         graph_ok = _graph_ok(task, result.state, gateway)
         for call in task.get("follow") or []:

@@ -13,6 +13,7 @@ from pathlib import Path
 from smaip.agents.graph import run_task
 from smaip.gateway.enforcement import ABLATION_ORDER, Enforcement, presets
 from smaip.eval.scenarios import Scenario, load_scenarios
+from smaip.probes.registry import stub_probes
 
 
 @dataclass
@@ -110,7 +111,13 @@ def _run_ablation(enforcement: Enforcement, scenarios: list[Scenario]) -> Ablati
     latency_ms = 0.0
     for scenario in scenarios:
         started = time.perf_counter()
-        result = run_task(scenario.user_task, enforcement=enforcement)
+        linear, activation = stub_probes()
+        result = run_task(
+            scenario.user_task,
+            enforcement=enforcement,
+            linear=linear,
+            probe=activation,
+        )
         gateway = result.gateway
         for call in scenario.injected:
             gateway.execute(

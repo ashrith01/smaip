@@ -32,5 +32,12 @@ class ProbeWeightsUnavailable(SmaipError):
     """Raised when a probe would need to download or load model weights."""
 
 
+class ProbeBackendUnavailable(SmaipError):
+    """Raised when activation collection was asked for a backend it cannot run.
+
+    Raising this on a missing install does not download weights.
+    """
+
+
 class TaintRejected(SmaipError):
     """Raised when an actor subject would be taken from tainted data."""

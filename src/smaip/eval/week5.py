@@ -22,8 +22,6 @@ from pathlib import Path
 from smaip.agents.graph import run_task
 from smaip.gateway.enforcement import ABLATION_ORDER, Enforcement, presets
 from smaip.probes.keyword import KeywordHook
-from smaip.probes.linear import LinearProbe
-from smaip.probes.mock import MockActivationProbe
 from smaip.vendors import VendorLibrary
 
 _SUITE = Path(__file__).resolve().parent / "suites" / "week5.json"
@@ -432,7 +430,11 @@ def _run_ablation(
     tasks: list[dict],
     library: VendorLibrary,
     traces: list[list[dict]],
+    probes: tuple | None = None,
 ) -> Week5Ablation:
+    from smaip.probes.registry import resolve_probes
+
+    linear, activation = resolve_probes(probes)
     scores: list[Week5Score] = []
     cost = 0.0
     calls = 0
@@ -444,6 +446,8 @@ def _run_ablation(
             enforcement=enforcement,
             fields=dict(task.get("fields") or {}),
             vendors=library,
+            linear=linear,
+            probe=activation,
         )
         gateway = result.gateway
         state = result.state
@@ -598,8 +602,8 @@ def _events(
                 "follow_up": index >= follow_from,
             }
         )
-    follow_probe = MockActivationProbe().score(untrusted) if untrusted else None
-    linear_score = LinearProbe().score(untrusted) if untrusted else None
+    follow_probe = gateway.probe.score(untrusted) if untrusted else None
+    linear_score = gateway.linear.score(untrusted) if untrusted else None
     events.append(
         {
             "type": "side_effects",

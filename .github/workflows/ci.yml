@@ -64,6 +64,17 @@ jobs:
       - name: Install, pytest, earlier gates, and the Week 6 suite
         run: make week6 PYTHON=python
 
+  week7:
+    name: week7
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Week 7 CPU smoke without a model download
+        run: SMAIP_PROBE_BACKEND=mock make week7-cpu PYTHON=python
+
   docker-build:
     name: docker-build
     runs-on: ubuntu-latest

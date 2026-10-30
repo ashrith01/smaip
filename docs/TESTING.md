@@ -1,6 +1,6 @@
 # Testing
 
-CPU-only. No GPU, no model download, and no API key. `make weekN` is the gate for that week. Later weeks include the earlier checks. CI on pull requests and on `main` runs the `week2`, `week3`, `week4`, `week5`, `week6`, and `docker-build` jobs. The workflow has no secrets.
+CPU-only. No GPU, no model download, and no API key. `make weekN` is the gate for that week. Later weeks include the earlier checks. CI on pull requests and on `main` runs the `week2`, `week3`, `week4`, `week5`, `week6`, `week7`, and `docker-build` jobs. The workflow has no secrets. The `week7` job is a CPU smoke. It sets `SMAIP_PROBE_BACKEND=mock` and does not download a model.
 
 ## make week1
 
@@ -37,7 +37,21 @@ The Week 5 checks, plus `python -m smaip.cli week6`. That writes `reports/week6_
 
 The gate keeps utility at 1 on every ablation. `no-defense` ASR is 1. `keyword` ASR is 0.25 (2 of 8), which is at most 0.30, and `keyword` FPR is 0. The keyword misses are `lark-quoted` and `lark-gate`. Nested and split payloads are caught. `gateway-only` and `full-stack` ASR are 0 and their FPR is 0. `LP-only` and `probe-only` stay at ASR 1 and FPR 0 until Week 7. `docs/ATTACK_TAXONOMY.md` defines the families. `RESULTS.md` includes the Week 5 before/after columns (keyword ASR 0.30 to 0.10, keyword FPR 0.50 to 0) and the Week 6 table.
 
-Pytest skips tests marked `hf` unless `SMAIP_RUN_HF=1`. That test loads `Qwen/Qwen2.5-0.5B-Instruct` on CPU and is not part of CI. The default engine remains `MockEngine`.
+Pytest skips tests marked `hf` unless `SMAIP_RUN_HF=1`. That test loads `Qwen/Qwen2.5-0.5B-Instruct` on CPU and is not part of CI. `tests/test_week7.py` marks one residual-stream check the same way. The default engine remains `MockEngine`.
+
+## make week7-cpu
+
+Does not rerun the Week 6 gate. It installs `.[dev]`, then runs `python -m smaip.cli week7 --subset tiny` with the model id `Qwen/Qwen2.5-0.5B-Instruct`, then `python -m smaip.cli bench`.
+
+`SMAIP_PROBE_BACKEND=mock` (what the CI job sets) uses a deterministic token hash instead of a forward pass. No weights are downloaded. The command writes `reports/RESULTS_week7.md` and `reports/week7_eval.json`, and the bench writes `reports/week7_bench.json` with `skipped: true` when CUDA or vLLM is absent. The bench exits 0 in that case.
+
+Without the mock backend, and with `.[hf]` installed, the same target loads `Qwen/Qwen2.5-0.5B-Instruct` on CPU (or on CUDA if a GPU is visible and the device is left on `auto`). The tiny subset is a fixed prefix of the tool outputs and of the Week 5 and Week 6 pages, plus two benign and two attack episodes from each suite. The full subset is `make week7-gpu`.
+
+The Week 1–6 suites pass the phrase stubs into the gateway, so a checkout that already has `artifacts/probes/` still passes `make week6`. The live gateway loads those artifacts unless `SMAIP_PROBES=stub`. Pytest points `SMAIP_PROBE_DIR` at an empty directory unless the test sets it, so the suite does not depend on leftover weights.
+
+## make week7-gpu
+
+Not a CI job. Installs `.[dev,hf]`, collects residuals from `Qwen/Qwen2.5-3B-Instruct` on CUDA, trains both probes, and remeasures the six ablations on the full Week 5 and Week 6 suites. It then attempts the `gpu` extra. The benchmark writes a skip and exits 0 if vLLM or CUDA is missing. The target finishes by writing `reports/week7-gpu-results.tar.gz`. `docs/GPU_RUNBOOK.md` covers sizing (one GPU, 24 GB or more, no cluster), the steps, and destroying the instance after the tarball is copied off.
 
 ## docker-build
 

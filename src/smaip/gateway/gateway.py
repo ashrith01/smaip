@@ -18,8 +18,7 @@ from smaip.gateway.sandbox import evaluate
 from smaip.gateway.workspace import Workspace, safe_relative_name
 from smaip.messages import Approval
 from smaip.probes.keyword import KeywordHook
-from smaip.probes.linear import LinearProbe
-from smaip.probes.mock import MockActivationProbe
+from smaip.probes.registry import load_activation_defense, load_linear_defense
 from smaip.vendors import VendorLibrary
 
 ROLE_TOOLS: dict[str, frozenset[str]] = {
@@ -61,15 +60,18 @@ class Gateway:
         *,
         workspace: Workspace | None = None,
         vendors: VendorLibrary | None = None,
-        probe: MockActivationProbe | None = None,
+        probe=None,
         keyword: KeywordHook | None = None,
+        linear=None,
     ) -> None:
         self.workspace = workspace or Workspace()
         self.vendors = vendors or VendorLibrary()
         self.audit = AuditLog()
         self.keyword = keyword if keyword is not None else KeywordHook.from_env()
-        self.linear = LinearProbe()
-        self.probe = probe or MockActivationProbe()
+        # Trained weights replace the phrase stubs when artifacts/probes exists.
+        # Week 1–6 suites pass the stubs explicitly so their gates stay published.
+        self.linear = linear if linear is not None else load_linear_defense()
+        self.probe = probe if probe is not None else load_activation_defense()
         self._issued: dict[str, Approval] = {}
         self.tool_calls = 0
         self.cost_units = 0

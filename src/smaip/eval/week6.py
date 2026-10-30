@@ -351,9 +351,12 @@ def _run_ablation(
     tasks: list[dict],
     library: VendorLibrary,
     traces: list[list[dict]],
+    probes: tuple | None = None,
 ):
     from smaip.eval.week5 import Week5Ablation
+    from smaip.probes.registry import resolve_probes
 
+    linear, activation = resolve_probes(probes)
     scores: list[Week5Score] = []
     cost = 0.0
     calls = 0
@@ -365,6 +368,8 @@ def _run_ablation(
             enforcement=enforcement,
             fields=dict(task.get("fields") or {}),
             vendors=library,
+            linear=linear,
+            probe=activation,
         )
         gateway = result.gateway
         state = result.state

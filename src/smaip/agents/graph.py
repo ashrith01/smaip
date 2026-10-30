@@ -58,9 +58,11 @@ class Runtime:
         self,
         enforcement: Enforcement | None = None,
         vendors: VendorLibrary | None = None,
+        linear=None,
+        probe=None,
     ) -> None:
         self.enforcement = enforcement or full_stack()
-        self.gateway = Gateway(vendors=vendors)
+        self.gateway = Gateway(vendors=vendors, linear=linear, probe=probe)
         self._approvals: dict[str, Approval] = {}
 
     def prepare(self, instruction: str, fields: dict | None = None) -> SmaipState:
@@ -332,8 +334,10 @@ def run_task(
     *,
     fields: dict | None = None,
     vendors: VendorLibrary | None = None,
+    linear=None,
+    probe=None,
 ) -> RunResult:
-    runtime = Runtime(enforcement=enforcement, vendors=vendors)
+    runtime = Runtime(enforcement=enforcement, vendors=vendors, linear=linear, probe=probe)
     token = _RUNTIME.set(runtime)
     try:
         state = get_graph().invoke(

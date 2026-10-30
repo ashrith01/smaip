@@ -7,6 +7,8 @@ from smaip.eval.week3 import week3_main
 from smaip.eval.week4 import week4_main
 from smaip.eval.week5 import week5_main
 from smaip.eval.week6 import week6_main
+from smaip.eval.week7 import week7_main
+from smaip.serving.benchmark import bench_main
 
 
 def serve(host: str = "127.0.0.1", port: int = 8000) -> None:
@@ -45,6 +47,25 @@ def main(argv: list[str] | None = None) -> int:
     week6_parser.add_argument("--traces", default="reports/traces")
     week6_parser.add_argument("--results", default="reports/RESULTS.md")
     week6_parser.add_argument("--failures", default="reports/FAILURES.md")
+    week7_parser = sub.add_parser(
+        "week7",
+        help="collect activations, train probes, and remeasure the six ablations",
+    )
+    week7_parser.add_argument("--model", default=None)
+    week7_parser.add_argument("--subset", default=None)
+    week7_parser.add_argument("--backend", default=None)
+    week7_parser.add_argument("--device", default=None)
+    week7_parser.add_argument("--layers", default=None)
+    week7_parser.add_argument("--artifacts", default=None)
+    week7_parser.add_argument("--activations", default=None)
+    week7_parser.add_argument("--results", default="reports/RESULTS_week7.md")
+    week7_parser.add_argument("--output", default="reports/week7_eval.json")
+    bench_parser = sub.add_parser(
+        "bench",
+        help="compare HF and vLLM when CUDA is present; skip cleanly otherwise",
+    )
+    bench_parser.add_argument("--output", default="reports/week7_bench.json")
+    bench_parser.add_argument("--model", default=None)
     args = parser.parse_args(argv)
     if args.cmd == "serve":
         serve(args.host, args.port)
@@ -59,6 +80,20 @@ def main(argv: list[str] | None = None) -> int:
         return week5_main(args.output, args.traces, args.results, args.failures)
     if args.cmd == "week6":
         return week6_main(args.output, args.traces, args.results, args.failures)
+    if args.cmd == "week7":
+        return week7_main(
+            model=args.model,
+            subset=args.subset or None,
+            backend=args.backend,
+            device=args.device,
+            layers=args.layers,
+            artifact_dir=args.artifacts,
+            activation_dir=args.activations,
+            results=args.results,
+            output=args.output,
+        )
+    if args.cmd == "bench":
+        return bench_main(["--output", args.output] + (["--model", args.model] if args.model else []))
     return 2
 
 
