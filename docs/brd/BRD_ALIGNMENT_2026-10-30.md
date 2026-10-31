@@ -4,6 +4,10 @@ Assessment date: October 30, 2026, America/Chicago.
 
 Source: [BRD: Secure Multi-Agent Inference Platform](https://brd-secure-multi-agent-inference-y62m.pages.grok.bot/), version 1.2 dated October 26, 2026. All 19 sections were read from the rendered page. Requirement IDs below are local traceability IDs added for this assessment; FR-1 through FR-4 and section numbers are the BRD's own structure. The source page was read without editing it. Prior-art assertions on the BRD page were not independently re-researched and are not accepted as proven novelty claims here.
 
+## Subsequent owner decision and implementation
+
+The owner clarified that the agent loop should also use an open-source model. That decision supersedes the old hosted-Codex selection in the source BRD. No OpenAI API credential is required for the chosen local HF/self-hosted vLLM path. The matrix below records the original audit; current implementation progress and outstanding acceptance work are in `OPEN_MODEL_V2_IMPLEMENTATION.md`. The v1 recovery/evidence is now preserved locally as commit `9d13c05`.
+
 ## Position against the actual BRD
 
 The repo has a substantial CPU-first engineering foundation plus real Week 7 frozen-Qwen probe training, repaired integration results and a verified numerical-parity diagnosis. It is **an experimental scaffold with measured components**, with important portions of the integrated portfolio product still missing.

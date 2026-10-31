@@ -11,6 +11,7 @@ import shutil
 import tarfile
 
 from smaip.probes.dataset import prepare_records
+from evidence_snapshot import assert_sources
 
 
 def sha(path):
@@ -48,7 +49,7 @@ def main():
         assert sha(name) == entry['sha256'], name
     source_root = Path('src/smaip')
     current_sources = {str(p.relative_to(source_root)): sha(p) for p in source_root.rglob('*.py')}
-    assert result['source_sha256'] == current_sources, 'GPU source hashes differ from current source'
+    source_snapshot = assert_sources(result['source_sha256'])
     records = {record.id: record for record in prepare_records('full')}
     rows = result['document_scores']
     assert len(rows) == len(records) == len({row['id'] for row in rows}) == 57
@@ -105,7 +106,7 @@ def main():
                                 'suite_elapsed_ms': row['latency_ms'], 'mean_episode_ms': row['latency_ms'] / len(row['scenarios'])})
     report = {'assessment': 'Integration recovery verified with remaining scientific and calibration caveats',
               'archive_sha256': sha(archive), 'probe_sha256': result['probe_sha256'],
-              'verified_source_files': len(current_sources), 'verified_documents': len(rows), 'verified_ablation_rows': len(comparisons),
+              'source_snapshot': source_snapshot, 'verified_source_files': len(result['source_sha256']), 'verified_documents': len(rows), 'verified_ablation_rows': len(comparisons),
               'runtime': result['runtime'], 'recomputed_record_metrics': computed,
               'stored_metric_discrepancies': discrepancies, 'episode_comparisons': comparisons}
     Path('reports/week7_rescore_validation.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -120,7 +121,7 @@ def main():
             shutil.copyfile(source, target)
     manifest = {'archive_sha256': sha(archive), 'files': {name: sha(snapshot / name) for name in ('RESULTS_week7_rescore.md', 'week7_rescore.json')}}
     (snapshot / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    print(json.dumps({'verified_sources': len(current_sources), 'verified_documents': len(rows), 'verified_ablations': len(comparisons), 'metric_discrepancies': discrepancies}, indent=2))
+    print(json.dumps({'verified_sources': len(result['source_sha256']), 'source_snapshot': source_snapshot, 'verified_documents': len(rows), 'verified_ablations': len(comparisons), 'metric_discrepancies': discrepancies}, indent=2))
 
 
 if __name__ == '__main__':

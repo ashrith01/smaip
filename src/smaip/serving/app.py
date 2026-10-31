@@ -41,6 +41,16 @@ class AgentTaskRequest(BaseModel):
     instruction: str = Field(min_length=1, max_length=4_000)
 
 
+class OpenAgentTaskRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    instruction: str = Field(min_length=1, max_length=4000)
+    vendor: str = Field(min_length=1, max_length=128)
+    recipient: str = Field(min_length=1, max_length=254)
+    backend: Literal["hf-local", "vllm-local"] = "hf-local"
+    variant: Literal["no-defense", "keyword-screen", "least-privilege-only", "gateway-only"] = "least-privilege-only"
+    approval_digest: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -171,19 +181,33 @@ def create_app(
             ) from exc
         cache: ExactPromptCache = app.state.cache
         try:
-            key = cache.prompt_key(selected.name, messages)
+            key = cache.prompt_key(getattr(selected, "cache_namespace", selected.name), messages)
         except ValueError as exc:
             raise HTTPException(
                 status_code=400,
                 detail={"message": str(exc), "type": "invalid_request"},
             ) from exc
+        if hasattr(selected, "complete_result") and body.temperature not in {None, 0.0}:
+            raise HTTPException(status_code=400, detail={"type": "unsupported", "message": "open-model path uses fixed greedy decoding; temperature must be zero"})
         cached = cache.get(key)
+        generation_metadata = {}
         if cached is None:
-            text = selected.complete(messages)
-            cache.put(key, text)
+            from smaip.serving.open_model import OpenModelUnavailable
+            try:
+                if hasattr(selected, "complete_result"):
+                    completion = selected.complete_result(messages)
+                    text = completion.text
+                    generation_metadata = completion.as_dict()
+                    generation_metadata.pop("text", None)
+                else:
+                    text = selected.complete(messages)
+            except OpenModelUnavailable as exc:
+                raise HTTPException(status_code=503, detail={"type": "backend_unavailable", "message": str(exc)}) from exc
+            cache.put(key, text, metadata=generation_metadata or None)
             cache_status = "miss"
         else:
             text = cached
+            generation_metadata = cache.metadata(key)
             cache_status = "hit"
         latency_ms = (time.perf_counter() - started) * 1000
         app.state.metrics.record(
@@ -207,6 +231,15 @@ def create_app(
         prompt_tokens = max(1, sum(len(item.content) for item in body.messages) // 4)
         completion_tokens = max(1, len(text) // 4)
         smaip = {"cache": cache_status, "engine": selected.name}
+        if hasattr(selected, "complete_result"):
+            exact = all(type(generation_metadata.get(k)) is int for k in ("input_tokens", "output_tokens"))
+            if exact:
+                prompt_tokens = generation_metadata["input_tokens"]
+                completion_tokens = generation_metadata["output_tokens"]
+            smaip.update({"model_id": generation_metadata.get("model_id"),
+                          "model_revision": generation_metadata.get("revision"),
+                          "usage_kind": "backend-reported" if exact else "estimated-character-count",
+                          "inference_executed": cache_status == "miss"})
         if body.redact_echo:
             smaip["redacted_echo"] = [
                 {"role": item.role, "content": redact_pii(item.content)} for item in body.messages
@@ -258,6 +291,29 @@ def create_app(
             }
         )
         return _agent_payload(result, instruction)
+
+    @app.post("/v2/agent/tasks")
+    def open_agent_task(body: OpenAgentTaskRequest, request: Request) -> dict:
+        from dataclasses import replace
+        from smaip.agents.open_loop import run_open_task
+        from smaip.eval.contract import evaluation_matrix
+        from smaip.serving.open_model import OpenModelUnavailable
+        try:
+            selected = app.state.engine_override or engine_for_model(body.backend)
+            model_id = selected.config.model_id if hasattr(selected, "config") else selected.name
+            config = next(c for c in evaluation_matrix(backend=body.backend, model_id=model_id) if c.name == body.variant)
+            if hasattr(selected, "config"):
+                config = replace(config, max_new_tokens=selected.config.max_new_tokens)
+            result = run_open_task(body.instruction, vendor=body.vendor, recipient=body.recipient,
+                                   config=config, engine=selected, approval_digest=body.approval_digest)
+        except (ValueError, UnknownEngine) as exc:
+            raise HTTPException(status_code=400, detail={"type": "invalid_agent_configuration", "message": str(exc)}) from exc
+        except OpenModelUnavailable as exc:
+            raise HTTPException(status_code=503, detail={"type": "backend_unavailable", "message": str(exc)}) from exc
+        app.state.request_audit.record({"event": "agent.v2", "request_id": getattr(request.state, "request_id", ""),
+                                        "engine": selected.name, "status": 200,
+                                        "redacted_preview": redact_pii(body.instruction)[:240]})
+        return result
 
     app.add_middleware(InferenceGuard, fastapi_app=app)
     return app

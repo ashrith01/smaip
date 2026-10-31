@@ -10,6 +10,7 @@ import math
 from pathlib import Path
 
 from smaip.probes.dataset import prepare_records
+from evidence_snapshot import assert_sources
 
 
 def sha(path):
@@ -43,7 +44,7 @@ def main():
     assert (m['backend'], m['model_id'], m['device'], m['subset'], m['repeats']) == ('hf', 'Qwen/Qwen2.5-3B-Instruct', 'cuda', 'full', 2)
     assert sha('scripts/gpu/probe_parity.py') == m['script_sha256']
     root = Path('src/smaip')
-    assert {str(p.relative_to(root)): sha(p) for p in root.rglob('*.py')} == m['source_sha256']
+    source_snapshot = assert_sources(m['source_sha256'])
     assert sha('reports/week7_rescore.json') == m['prior_rescore_sha256']
     records = {record.id: record for record in prepare_records('full')}
     assert len(records) == len(m['records']) == len({x['id'] for x in m['records']}) == 57
@@ -122,7 +123,7 @@ def main():
     repeat_equal = {mode: all(vectors[(f'{mode}_repeat1', key)] == vectors[(f'{mode}_repeat2', key)] for key in records)
                     for mode in ('serving', 'batch1', 'batch4')}
     summary = {'assessment': 'Reproducible batch-size-dependent feature difference; original threshold crossing reproduced',
-               'archive_sha256': manifest['archive_sha256'], 'verified_source_files': len(m['source_sha256']),
+               'archive_sha256': manifest['archive_sha256'], 'source_snapshot': source_snapshot, 'verified_source_files': len(m['source_sha256']),
                'verified_documents': len(records), 'verified_conditions': len(expected_conditions),
                'verified_vector_rows': len(vectors), 'verified_scores': len(vectors) * 2,
                'maximum_recomputed_score_error': max_score_error, 'exact_vector_repeat_matches': repeat_equal,

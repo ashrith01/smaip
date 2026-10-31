@@ -16,7 +16,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from smaip.serving.access import request_id_from_header
 
-_GUARDED_PATHS = frozenset({"/v1/chat/completions", "/v1/agent/tasks"})
+_GUARDED_PATHS = frozenset({"/v1/chat/completions", "/v1/agent/tasks", "/v2/agent/tasks"})
 _BODY_METHODS = {"POST", "PUT", "PATCH"}
 
 

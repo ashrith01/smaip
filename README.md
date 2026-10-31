@@ -6,6 +6,8 @@ The platform serves an OpenAI-compatible chat endpoint, runs a small LangGraph o
 
 The [BRD alignment assessment](docs/brd/BRD_ALIGNMENT_2026-10-30.md) maps the current scaffold and GPU evidence to the full product requirements. It identifies remaining real-model integration, structural ablations, low-FPR evaluation, serving and release work.
 
+The owner subsequently selected open models for the agent loop too. The [V2 implementation checkpoint](docs/brd/OPEN_MODEL_V2_IMPLEMENTATION.md) documents opt-in `hf-local`/`vllm-local` generation, the bounded `agent-v2` pilot, separate least-privilege/detector evaluation factors, and the new feature/calibration/data contracts. These paths require no OpenAI API key; real-model pilot/independent V2 quality results remain pending.
+
 ## 1. Install
 
 From a checkout of this repo:

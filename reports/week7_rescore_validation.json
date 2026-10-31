@@ -5,6 +5,7 @@
     "linear.json": "bd9101c60fce3f9203ae549b66416979e19fd4b16e19af52f0b4ae932fef4c80",
     "activation.json": "03efef7f1000eccff04b404b63dcaeedfd8a9ecc7f871c938bb22302bb1140fd"
   },
+  "source_snapshot": "git:9d13c05",
   "verified_source_files": 55,
   "verified_documents": 57,
   "verified_ablation_rows": 12,

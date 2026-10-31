@@ -12,6 +12,7 @@ class ExactPromptCache:
         self.max_entries = max_entries
         self._store: dict[str, str] = {}
         self._order: list[str] = []
+        self._metadata: dict[str, dict] = {}
         self.hits = 0
         self.misses = 0
         self._lock = Lock()
@@ -35,8 +36,16 @@ class ExactPromptCache:
             self.hits += 1
             return self._store[key]
 
-    def put(self, key: str, value: str) -> None:
+    def metadata(self, key: str) -> dict:
         with self._lock:
+            return dict(self._metadata.get(key, {}))
+
+    def put(self, key: str, value: str, *, metadata: dict | None = None) -> None:
+        with self._lock:
+            if metadata is None:
+                self._metadata.pop(key, None)
+            else:
+                self._metadata[key] = dict(metadata)
             if key in self._store:
                 self._store[key] = value
                 return
@@ -45,3 +54,4 @@ class ExactPromptCache:
             while len(self._order) > self.max_entries:
                 oldest = self._order.pop(0)
                 self._store.pop(oldest, None)
+                self._metadata.pop(oldest, None)

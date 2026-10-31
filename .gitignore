@@ -25,3 +25,7 @@ reports/traces/
 /reports/smoke/
 .coverage
 htmlcov/
+
+.DS_Store
+/reports/v2/
+/artifacts/v2/

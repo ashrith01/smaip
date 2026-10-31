@@ -1,6 +1,7 @@
 {
   "assessment": "Reproducible batch-size-dependent feature difference; original threshold crossing reproduced",
   "archive_sha256": "ef37737678797e463643ddad0bf527aceafdbeb047039c68e8b1a4a9f1966e6d",
+  "source_snapshot": "git:9d13c05",
   "verified_source_files": 55,
   "verified_documents": 57,
   "verified_conditions": 6,

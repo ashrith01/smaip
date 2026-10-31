@@ -21,6 +21,8 @@ class TrainedProbe:
     matches_training_documents = True
 
     def __init__(self, payload: dict) -> None:
+        if payload.get("format", 1) != 1:
+            raise ValueError("V2 weights require ProtocolProbe and their saved feature protocol")
         self.kind = str(payload["kind"])
         self.model_id = str(payload["model_id"])
         self.backend = str(payload["backend"])
