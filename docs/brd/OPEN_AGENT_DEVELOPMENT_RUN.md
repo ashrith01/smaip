@@ -1,5 +1,13 @@
 # Paired open-agent development run
 
+**Completed run:** revision 4/checkpoint `9d40bd7` has been returned and verified.
+All 24 episodes completed. Clean task success was 4/4 for no-defense, 0/4 for
+least privilege, and 4/4 for keyword; no declared attacker objective succeeded.
+See `reports/OPEN_AGENT_DEV_01_ANALYSIS.md` for the audit and remaining failures.
+The commands below reproduce the historical protocol-3 run; they are not a request
+to run it again. Protocol-4 handoff repairs are tested locally but await a future
+GPU regression. Preserve a completed snapshot before destroying the idle instance.
+
 ## Current checkpoint
 
 Pilot 03 verified the Pydantic/constrained generation path on the A16: 24 valid
@@ -7,7 +15,7 @@ responses, four sandboxed deliveries, no attacker-directed send or audit mutatio
 The summaries exposed missing facts, unsupported currency and placeholder contamination;
 the delivery flag is not factual-quality evidence. See `reports/OPEN_MODEL_PILOT_03_ANALYSIS.md`.
 
-The next run measures a newly declared canonical numeric task on four matched
+This completed run measured a newly declared canonical numeric task on four matched
 clean/injected pairs. This is development-only fixture evaluation; it does not train
 probes or establish independent BRD acceptance. The script uses the decoder package
 and model cache already verified in pilot 03, with the same Python environment.
@@ -59,9 +67,10 @@ effect, not proof of confidential-data disclosure or causal attribution by itsel
 
 ## Decisions after this run
 
-1. Check complete clean numeric summaries, paired utility changes and actual attacker
-   objectives. If the undefended model resists all four injected cases, report the
-   observed tie and leave susceptibility/strict full-stack superiority pending.
+1. The utility/effect scores have now been checked: the least-privilege handoff adds
+   unreported fields or scratch files, while all attacker objectives remain zero.
+   Preserve those results. Recheck the local protocol-4 repair in the next scheduled
+   GPU window; susceptibility and strict full-stack superiority remain pending.
 2. Freeze a broader independent evaluation/data protocol with source/family holdouts,
    reviewed document labels, upstream license records and adaptive cases. Keep these
    V1-derived development pairs out of final accuracy claims.

@@ -6,7 +6,7 @@ On October 30, 2026, the owner clarified that the agent should also use an open-
 
 ## Current status — October 31, 2026
 
-Pilot 03 verified checkpoint `d7653e8` on the A16: all 222 bundle files/64 Python sources matched, all 24 model replies were valid, and four sandboxed messages were actually sent. Format integration works; summary completeness/factuality and a susceptible attack baseline remain unproven. See `reports/OPEN_MODEL_PILOT_03_ANALYSIS.md`. The next GPU command is the paired development benchmark in `OPEN_AGENT_DEVELOPMENT_RUN.md`, using revision-4 source and explicit post-run quality/security grading. The historical pilot-03 commands below have already been completed.
+Pilot 03 verified checkpoint `d7653e8` on the A16. The subsequent paired development run verified checkpoint `9d40bd7`, all 243 bundle files/65 Python sources, 24 episodes and 151 valid model replies. Its clean task success was 4/4 no-defense, 0/4 least privilege and 4/4 keyword, with no declared attacker objective achieved. Format integration works; the least-privilege utility condition and a susceptible attack baseline remain unmet on these development cases. See `reports/OPEN_AGENT_DEV_01_ANALYSIS.md`. Protocol-4 Pydantic handoff/prompt repairs are now locally tested; their GPU quality outcome remains unmeasured. The benchmark in `OPEN_AGENT_DEVELOPMENT_RUN.md` and the historical pilot-03 commands below have already been completed. The GPU can be backed up for the next scheduled regression/feature-validation/training window while V2 data and fitting work proceed locally.
 
 ## Preserved baseline
 
@@ -23,6 +23,7 @@ Commit `9d13c05` preserves the verified v1 recovery, trained probe parameters an
 - The chat API accepts these new explicit selectors when enabled. Cache keys include backend/model/configuration identity. Backend-reported token counts are retained on cache hits; absent counts are marked as estimates. New open-model paths reject nonzero temperature because their evaluation policy fixes greedy decoding. Backend failures return 503.
 - `smaip agent-v2`: a bounded LangGraph pilot with model-proposed JSON actions, single-agent and reader/analyst/actor topologies, role-capability checks and in-memory tool effects. Quarantined raw content is not forwarded to a model. Gateway variants require an approval digest bound to the exact proposed action; a model cannot set it through arguments. Traces preserve model/backend usage, refused actions, quarantine and actual enabled detector scores.
 - Agent protocol 3 uses strict Pydantic response models for each tool and `final`. Their shared JSON Schema drives HF token filtering with lm-format-enforcer 0.11.3 and vLLM JSON-schema requests. The same schema applies across roles/ablations; it constrains formatting and types, while leaving permission checks and factual quality separate. Model/action-schema hashes and decoding mode are recorded. The pinned helper adds a small dependency; no hosted provider is involved.
+- Agent protocol 4 preserves the formatter's result and analyst prose separately in a strict, explicitly untrusted Pydantic `SummaryHandoff`. Roles are instructed to preserve user-requested formats and avoid padding absent metrics or creating scratch files. This is a local development repair, not a measured GPU utility gain; action proposals and capability/approval checks remain separate.
 
 The new runtime only accesses local vendor fixtures and an in-memory workspace. It does not send real email, write user files or expose arbitrary execution. `POST /v2/agent/tasks` exposes the bounded pilot behind the existing authentication/body/rate guard. Approval currently uses an exact-digest confirmed rerun, not persisted graph resumption. No live web-fetch adapter, deployed persistent review/resume API, complete external benchmark adapter or dataset-v2 corpus has been added yet.
 
@@ -36,12 +37,12 @@ The `agent-v2` CLI currently exposes the no-defense, keyword-screen, least-privi
 
 ## Validation recorded for this checkpoint
 
-- Initial checkpoint suite: **193 passed, 2 optional HF tests skipped**. After pilot-01 orchestration repairs: **196 passed, 2 optional HF tests skipped**. Protocol-3 Pydantic/constrained-response integration: **213 passed, 2 optional HF tests skipped**. With paired development-case grading/runner: **220 passed, 2 optional HF tests skipped**.
+- Initial checkpoint suite: **193 passed, 2 optional HF tests skipped**. After pilot-01 orchestration repairs: **196 passed, 2 optional HF tests skipped**. Protocol-3 Pydantic/constrained-response integration: **213 passed, 2 optional HF tests skipped**. With paired development-case grading/runner: **220 passed, 2 optional HF tests skipped**. Protocol-4 handoff regression: **221 passed, 2 optional HF tests skipped**.
 - `make week6 -o install`: all legacy evaluation gates passed using the already installed development environment.
 - Mock `make week7-cpu -o install`: passed; vLLM bench correctly skipped without CUDA.
 - Both V1 evidence analyzers passed against frozen source commit `9d13c05`; original probe hashes/results remain unchanged.
 - The negative `brd-gate` check returned `pending` and exit code 1, as required for unmeasured contract input.
-- No real model generation, model-weight download, new training, public deployment or hosted-provider call was executed locally. A tokenizer-only check downloaded the pinned Qwen tokenizer JSON, accepted eight valid action forms and rejected four malformed forms using its 151,665-token vocabulary. Returned GPU evidence now verifies protocol-3 generation; the new paired development benchmark still needs its manual GPU run. Tokenizer-only validation does not measure agent quality.
+- No real model generation, model-weight download, new training, public deployment or hosted-provider call was executed locally. A tokenizer-only check downloaded the pinned Qwen tokenizer JSON, accepted eight valid action forms and rejected four malformed forms using its 151,665-token vocabulary. Returned GPU evidence verifies protocol-3 generation and the paired development benchmark. Protocol 4 still needs its GPU check; tokenizer-only/unit validation does not measure agent quality.
 
 ## Local commands
 
@@ -100,7 +101,7 @@ Inspect that returned pilot before scaling to larger model-driven evaluation or 
 
 ## Remaining work in order
 
-1. Run the paired development benchmark in `OPEN_AGENT_DEVELOPMENT_RUN.md`: grade full canonical numeric task success, model-driven attack objectives and matched controls separately. Keep it out of independent final claims. Add API-level bounded agent review/resume and allowlisted read-only fetching after the local loop is verified.
+1. Preserve the completed development results and verify the protocol-4 clean handoff repair in the next GPU window. Its utility is not yet measured; keep this development suite out of independent final claims. Add API-level bounded agent review/resume and allowlisted read-only fetching after the local loop is verified.
 2. Review and build the V2 corpus with enough independent benign cases, held-out attack families/sources and adaptive cases. The validator is ready; the corpus, provenance and license review are not complete.
 3. Add the V2 fitting/calibration command using the shared extractor and low-FPR policy, then train new weights and record raw vectors. Validate the actual tool-content feature protocol on the GPU first. Old weights remain historical evidence.
 4. Wire the full model-driven ablation runner and result provenance into the acceptance gate. Add output-canary/model-input privacy policy, deployment-level approval lifecycle, real-model quality regression and performance budgets. Current mock/unit passes are software checks only.

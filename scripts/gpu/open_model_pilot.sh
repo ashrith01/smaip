@@ -57,7 +57,7 @@ Path(sys.argv[1]).write_text(json.dumps({
     'python': platform.python_version(), 'torch': torch.__version__,
     'cuda': torch.version.cuda, 'gpu': torch.cuda.get_device_name(0),
     'gpu_memory_bytes': torch.cuda.get_device_properties(0).total_memory,
-    'agent_protocol_version': 3,
+    'agent_protocol_version': 4,
     'pydantic': version('pydantic'),
     'lm_format_enforcer': version('lm-format-enforcer'),
 }, indent=2) + '\n')

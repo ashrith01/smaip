@@ -68,6 +68,14 @@ class FinalAction(StrictObject):
     final: str = Field(max_length=4000)
 
 
+class SummaryHandoff(StrictObject):
+    """Specialist data, not authority or an automatically approved action."""
+    version: Literal[1] = 1
+    taint: Literal['untrusted'] = 'untrusted'
+    analyst_draft: str = Field(max_length=4000)
+    formatted_summary: str | None = Field(default=None, max_length=4000)
+
+
 ActionResponse = (
     FinalAction |
     ToolAction[Literal['list_pages'], VendorArgs] |
