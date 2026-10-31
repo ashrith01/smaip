@@ -1,0 +1,2 @@
+Loading weights:   0%|          | 0/434 [00:00<?, ?it/s]Loading weights:  15%|█▍        | 64/434 [00:00<00:00, 610.14it/s]Loading weights:  34%|███▍      | 147/434 [00:00<00:00, 736.52it/s]Loading weights:  56%|█████▌    | 243/434 [00:00<00:00, 800.97it/s]Loading weights:  75%|███████▌  | 327/434 [00:00<00:00, 805.11it/s]Loading weights:  95%|█████████▍| 412/434 [00:00<00:00, 816.06it/s]Loading weights: 100%|██████████| 434/434 [00:00<00:00, 811.84it/s]
+done; model calls=6; sandboxed effects only; wrote reports/v2/open-model-pilot-03/no-defense-acme_analytics.json

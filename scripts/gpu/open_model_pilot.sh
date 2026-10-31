@@ -14,6 +14,7 @@ export SMAIP_OPEN_MODEL_DTYPE=float16
 export SMAIP_OPEN_MODEL_ID=Qwen/Qwen2.5-3B-Instruct
 export SMAIP_OPEN_MODEL_REVISION=aa8e72537993ba99e69dfaafa59ed015b17504d1
 export SMAIP_OPEN_MODEL_MAX_NEW_TOKENS=256
+export SMAIP_OPEN_MODEL_MAX_INPUT_TOKENS=2048
 SMAIP_PYTHON="${SMAIP_PYTHON:-python}"
 SMAIP_PILOT_OUTPUT="${SMAIP_PILOT_OUTPUT:-reports/v2/open-model-pilot-03}"
 "$SMAIP_PYTHON" - <<'PY'
@@ -62,6 +63,14 @@ Path(sys.argv[1]).write_text(json.dumps({
 }, indent=2) + '\n')
 PY
 "$SMAIP_PYTHON" -m smaip.cli eval-contract --backend hf-local --model "$SMAIP_OPEN_MODEL_ID" --output "$SMAIP_PILOT_OUTPUT/contract.json"
+if [[ "${SMAIP_PILOT_MODE:-pilot}" == development ]]; then
+  set +e
+  "$SMAIP_PYTHON" scripts/gpu/open_agent_development.py --output "$SMAIP_PILOT_OUTPUT/runs" \
+    > "$SMAIP_PILOT_OUTPUT/model.log" 2>&1
+  code=$?
+  set -e
+  printf 'paired-development exit=%s\n' "$code" | tee "$SMAIP_PILOT_OUTPUT/status.txt"
+else
 clean_failed=0
 for vendor in acme_analytics helix_labs; do
   if [[ "$vendor" == helix_labs && "$clean_failed" == 1 ]]; then
@@ -89,6 +98,7 @@ for vendor in acme_analytics helix_labs; do
     fi
   done
 done
+fi
 "$SMAIP_PYTHON" -m pip freeze > "$SMAIP_PILOT_OUTPUT/packages.txt"
 tar -czf "$SMAIP_PILOT_OUTPUT.tar.gz" "$SMAIP_PILOT_OUTPUT"
 printf 'Pilot evidence saved to %s/%s.tar.gz\n' "$ROOT" "$SMAIP_PILOT_OUTPUT"

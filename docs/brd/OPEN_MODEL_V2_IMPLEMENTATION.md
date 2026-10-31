@@ -4,6 +4,10 @@
 
 On October 30, 2026, the owner clarified that the agent should also use an open-source model. This supersedes the BRD v1.2 hosted-Codex choice. The implementation now uses optional local HF generation or a self-hosted vLLM endpoint. No OpenAI API key is required. The old `clients/codex.py` stub remains historical scaffolding and is not used by the new path.
 
+## Current status — October 31, 2026
+
+Pilot 03 verified checkpoint `d7653e8` on the A16: all 222 bundle files/64 Python sources matched, all 24 model replies were valid, and four sandboxed messages were actually sent. Format integration works; summary completeness/factuality and a susceptible attack baseline remain unproven. See `reports/OPEN_MODEL_PILOT_03_ANALYSIS.md`. The next GPU command is the paired development benchmark in `OPEN_AGENT_DEVELOPMENT_RUN.md`, using revision-4 source and explicit post-run quality/security grading. The historical pilot-03 commands below have already been completed.
+
 ## Preserved baseline
 
 Commit `9d13c05` preserves the verified v1 recovery, trained probe parameters and original training/rescore/parity evidence. Legacy Week 1–7 commands retain their meanings, including the historical `LP-only` linear-probe label. The evidence analyzers can validate the recorded engine hashes against this frozen commit when the current tree moves forward. Canonical v1 probe files are unchanged; new artifacts belong under `artifacts/v2/`.
@@ -26,18 +30,18 @@ The new runtime only accesses local vendor fixtures and an in-memory workspace. 
 
 Local tests cover contract semantics, tie-aware low-FPR calibration without test fitting, group/family/text leakage rejection, content masks, old/new artifact incompatibility, self-hosted transport and exact cache usage, role separation, quarantine, bounded invalid model outputs and action-bound approval. Network calls are mocked in the transport tests; scripted model responses are explicitly labeled test inputs, not measured model quality.
 
-The HF adapter has executed two GPU pilots using the pinned Qwen snapshot. Pilot 01's four tasks were incomplete. Pilot 02 verified all 205 files from checkpoint `bdda93b` on the A16 and let the actor run, but both clean tasks still failed on response format/factual behavior; attack cases were skipped. See `reports/OPEN_MODEL_PILOT_01_ANALYSIS.md`, `reports/OPEN_MODEL_PILOT_02_ANALYSIS.md`, and their raw `reports/runs/` directories. The new protocol-3 constrained generation, live vLLM adapter and V2 feature extractor still require GPU validation. No new trained V2 probes, independent accuracy values, dollars-per-token numbers or model-driven attack-resistance gains are claimed. Existing V1 scores retain their recorded limitations.
+The HF adapter has executed three GPU pilots using the pinned Qwen snapshot. Pilot 01's four tasks were incomplete. Pilot 02 verified checkpoint `bdda93b` but both clean tasks still failed. Pilot 03 verified protocol-3 constrained generation and actual delivery, with residual content errors. See the three `reports/OPEN_MODEL_PILOT_*_ANALYSIS.md` reports and raw `reports/runs/` directories. The live vLLM adapter and V2 feature extractor still require GPU validation. No new trained V2 probes, independent accuracy values, dollars-per-token numbers or model-driven attack-resistance gains are claimed. Existing V1 scores retain their recorded limitations.
 
 The `agent-v2` CLI currently exposes the no-defense, keyword-screen, least-privilege-only and gateway-only pilot variants. Learned-detector/full-stack runs require explicitly constructed V2 probes in the runtime and new data/training; there is no silent fallback to V1 weights or phrase stubs.
 
 ## Validation recorded for this checkpoint
 
-- Initial checkpoint suite: **193 passed, 2 optional HF tests skipped**. After pilot-01 orchestration repairs: **196 passed, 2 optional HF tests skipped**. Protocol-3 Pydantic/constrained-response integration: **213 passed, 2 optional HF tests skipped**.
+- Initial checkpoint suite: **193 passed, 2 optional HF tests skipped**. After pilot-01 orchestration repairs: **196 passed, 2 optional HF tests skipped**. Protocol-3 Pydantic/constrained-response integration: **213 passed, 2 optional HF tests skipped**. With paired development-case grading/runner: **220 passed, 2 optional HF tests skipped**.
 - `make week6 -o install`: all legacy evaluation gates passed using the already installed development environment.
 - Mock `make week7-cpu -o install`: passed; vLLM bench correctly skipped without CUDA.
 - Both V1 evidence analyzers passed against frozen source commit `9d13c05`; original probe hashes/results remain unchanged.
 - The negative `brd-gate` check returned `pending` and exit code 1, as required for unmeasured contract input.
-- No real model generation, model-weight download, new training, public deployment or hosted-provider call was executed locally. A tokenizer-only check downloaded the pinned Qwen tokenizer JSON, accepted eight valid action forms and rejected four malformed forms using its 151,665-token vocabulary. Returned GPU evidence verifies protocol-2 HF generation; protocol 3 still needs a manual GPU run. Tokenizer-only validation does not measure agent quality.
+- No real model generation, model-weight download, new training, public deployment or hosted-provider call was executed locally. A tokenizer-only check downloaded the pinned Qwen tokenizer JSON, accepted eight valid action forms and rejected four malformed forms using its 151,665-token vocabulary. Returned GPU evidence now verifies protocol-3 generation; the new paired development benchmark still needs its manual GPU run. Tokenizer-only validation does not measure agent quality.
 
 ## Local commands
 
@@ -55,7 +59,7 @@ To validate a future JSONL dataset, each row must have `id`, `text`, `label` (0/
 .venv/bin/python -m smaip.cli validate-corpus-v2 /path/to/reviewed-corpus.jsonl
 ```
 
-## Next manual GPU pilot — revision 3
+## Historical manual GPU pilot — revision 3 completed
 
 A separately named transfer bundle `reports/brd-open-model-v2-r3.tar.gz` contains the Pydantic/constrained-response code and the pinned 45 KB decoder wheel. It preserves earlier GPU checkouts and results. From the Mac:
 
@@ -96,7 +100,7 @@ Inspect that returned pilot before scaling to larger model-driven evaluation or 
 
 ## Remaining work in order
 
-1. Run/review the open-model pilot; fix concrete model/action-contract failures before scale-up. Add API-level bounded agent review/resume and allowlisted read-only fetching after the local loop is verified.
+1. Run the paired development benchmark in `OPEN_AGENT_DEVELOPMENT_RUN.md`: grade full canonical numeric task success, model-driven attack objectives and matched controls separately. Keep it out of independent final claims. Add API-level bounded agent review/resume and allowlisted read-only fetching after the local loop is verified.
 2. Review and build the V2 corpus with enough independent benign cases, held-out attack families/sources and adaptive cases. The validator is ready; the corpus, provenance and license review are not complete.
 3. Add the V2 fitting/calibration command using the shared extractor and low-FPR policy, then train new weights and record raw vectors. Validate the actual tool-content feature protocol on the GPU first. Old weights remain historical evidence.
 4. Wire the full model-driven ablation runner and result provenance into the acceptance gate. Add output-canary/model-input privacy policy, deployment-level approval lifecycle, real-model quality regression and performance budgets. Current mock/unit passes are software checks only.

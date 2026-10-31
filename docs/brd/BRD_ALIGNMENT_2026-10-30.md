@@ -8,6 +8,8 @@ Source: [BRD: Secure Multi-Agent Inference Platform](https://brd-secure-multi-ag
 
 The owner clarified that the agent loop should also use an open-source model. That decision supersedes the old hosted-Codex selection in the source BRD. No OpenAI API credential is required for the chosen local HF/self-hosted vLLM path. The matrix below records the original audit; current implementation progress and outstanding acceptance work are in `OPEN_MODEL_V2_IMPLEMENTATION.md`. The v1 recovery/evidence is now preserved locally as commit `9d13c05`.
 
+October 31 update: returned pilot 03 verified constrained Pydantic agent actions on the real A16 model, with four deliveries and remaining summary errors. The next measured step uses matched development controls and explicit quality/effect grading; see `OPEN_AGENT_DEVELOPMENT_RUN.md`. V2 probe training, independent low-FPR evidence and final BRD acceptance remain pending. References to a hosted client or unimplemented model loop below describe the original assessment, not the current owner-selected architecture.
+
 ## Position against the actual BRD
 
 The repo has a substantial CPU-first engineering foundation plus real Week 7 frozen-Qwen probe training, repaired integration results and a verified numerical-parity diagnosis. It is **an experimental scaffold with measured components**, with important portions of the integrated portfolio product still missing.
@@ -16,7 +18,7 @@ The strongest completed work is API/gateway hygiene, a structured LangGraph fixt
 
 The implementation is strongest in the Week 1–6 foundations and part of Week 7. Some Week 3–4 product behavior remains a mock, and Week 8's live integration, complete acceptance gates and public release are pending. Week labels are implementation milestones, not proof that all BRD requirements for those stages passed. A single percentage complete would hide these differences.
 
-Current checkout: `codex/week7-recovery`, based on `9233cf9429b896778735f809d8d049b33109a27e`; recovery changes remain uncommitted and unpushed. No publication or deployment was performed during this assessment.
+Checkout at the original assessment: `codex/week7-recovery`, based on `9233cf9429b896778735f809d8d049b33109a27e`; recovery changes were then uncommitted and unpushed. Current local checkpoints and status are in the update above. No publication or deployment was performed during this assessment.
 
 ## Requirements traceability
 
