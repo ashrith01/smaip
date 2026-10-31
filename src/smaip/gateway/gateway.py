@@ -107,6 +107,7 @@ class Gateway:
         arguments: dict[str, Any],
         enforcement: Enforcement,
         untrusted_text: str = "",
+        untrusted_documents: list[str] | None = None,
         approval: Approval | None = None,
         lineage: dict | None = None,
     ) -> Decision:
@@ -145,7 +146,12 @@ class Gateway:
 
         if reason is None and tool in MUTATING:
             hook_text = _hook_text(untrusted_text, cleaned)
-            hook_reason = self._hook_reason(hook_text, enforcement)
+            # Trained detectors score original documents. A generated digest
+            # plus recipient/subject is outside their training distribution.
+            documents = untrusted_documents
+            if documents is None:
+                documents = [untrusted_text] if untrusted_text else list(self._tainted_pages)
+            hook_reason = self._hook_reason(hook_text, enforcement, documents)
             if (
                 hook_reason is None
                 and untrusted_text
@@ -165,7 +171,7 @@ class Gateway:
 
         if reason is None and tool == "read_page":
             self._tainted_pages.append(output)
-            hook_reason = self._hook_reason(output, enforcement)
+            hook_reason = self._hook_reason(output, enforcement, [output])
             if hook_reason is None and enforcement.keyword and _aggregate_closed(
                 self.keyword, self._tainted_pages
             ):
@@ -240,12 +246,15 @@ class Gateway:
             return "approval_subject_mismatch"
         return None
 
-    def _hook_reason(self, text: str, enforcement: Enforcement) -> str | None:
+    def _hook_reason(
+        self, text: str, enforcement: Enforcement, documents: list[str] | None = None,
+    ) -> str | None:
         if enforcement.keyword and self.keyword.flagged(text):
             return "keyword_hook"
-        if enforcement.linear_probe and self.linear.flagged(text):
+        docs = documents if documents is not None else ([text] if text else [])
+        if enforcement.linear_probe and _defense_flags(self.linear, text, docs):
             return "linear_probe_hook"
-        if enforcement.activation_probe and self.probe.flagged(text):
+        if enforcement.activation_probe and _defense_flags(self.probe, text, docs):
             return "activation_probe_hook"
         return None
 
@@ -365,6 +374,12 @@ def _aggregate_closed(keyword: KeywordHook, pages: list[str]) -> bool:
     if len(pages) < 2 or keyword.hits_many(pages[:-1]):
         return False
     return bool(keyword.hits_many(pages))
+
+
+def _defense_flags(probe, hook_text: str, documents: list[str]) -> bool:
+    if getattr(probe, "matches_training_documents", False):
+        return any(probe.flagged(document) for document in documents if document)
+    return bool(hook_text) and bool(probe.flagged(hook_text))
 
 
 def _hook_text(untrusted_text: str, arguments: dict[str, Any]) -> str:

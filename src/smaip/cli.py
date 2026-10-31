@@ -7,7 +7,7 @@ from smaip.eval.week3 import week3_main
 from smaip.eval.week4 import week4_main
 from smaip.eval.week5 import week5_main
 from smaip.eval.week6 import week6_main
-from smaip.eval.week7 import week7_main
+from smaip.eval.week7 import rescore_main, week7_main
 from smaip.serving.benchmark import bench_main
 
 
@@ -60,6 +60,12 @@ def main(argv: list[str] | None = None) -> int:
     week7_parser.add_argument("--activations", default=None)
     week7_parser.add_argument("--results", default="reports/RESULTS_week7.md")
     week7_parser.add_argument("--output", default="reports/week7_eval.json")
+    rescore_parser = sub.add_parser("week7-rescore", help="rerun episodes with saved probes; no training")
+    rescore_parser.add_argument("--artifacts", default=None)
+    rescore_parser.add_argument("--results", default="reports/RESULTS_week7_rescore.md")
+    rescore_parser.add_argument("--output", default="reports/week7_rescore.json")
+    rescore_parser.add_argument("--subset", choices=["full", "tiny"], default="full")
+    rescore_parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default=None)
     bench_parser = sub.add_parser(
         "bench",
         help="compare HF and vLLM when CUDA is present; skip cleanly otherwise",
@@ -92,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
             results=args.results,
             output=args.output,
         )
+    if args.cmd == "week7-rescore":
+        return rescore_main(artifact_dir=args.artifacts, results=args.results, output=args.output, subset=args.subset, device=args.device)
     if args.cmd == "bench":
         return bench_main(["--output", args.output] + (["--model", args.model] if args.model else []))
     return 2

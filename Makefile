@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: week1 week2 week3 week4 week5 week6 week7-cpu week7-gpu install install-gpu test eval serve up deploy down
+.PHONY: week1 week2 week3 week4 week5 week6 week7-cpu week7-gpu week7-rescore install install-gpu test eval serve up deploy down
 
 # Install the scaffold, run the suite, and write the ablation report.
 week1: install test eval
@@ -47,8 +47,11 @@ week6: install test eval
 week7-cpu: install
 	export SMAIP_PROBE_MODEL="$${SMAIP_PROBE_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"; \
 	export SMAIP_PROBE_SUBSET="$${SMAIP_PROBE_SUBSET:-tiny}"; \
-	$(PYTHON) -m smaip.cli week7 --subset tiny --model "$$SMAIP_PROBE_MODEL" && \
-	$(PYTHON) -m smaip.cli bench
+	mkdir -p reports/smoke && \
+	$(PYTHON) -m smaip.cli week7 --subset tiny --model "$$SMAIP_PROBE_MODEL" \
+		--artifacts artifacts/smoke/probes --activations artifacts/smoke/activations \
+		--results reports/smoke/RESULTS_week7.md --output reports/smoke/week7_eval.json && \
+	SMAIP_PROBE_DIR=artifacts/smoke/probes $(PYTHON) -m smaip.cli bench --output reports/smoke/week7_bench.json
 
 # Week 7 GPU path: full subset, Qwen2.5-3B-Instruct, then the vLLM comparison.
 # The Hugging Face extra is required. The vLLM extra is attempted; if it does
@@ -68,6 +71,10 @@ week7-gpu:
 		reports/week7_eval.json \
 		reports/week7_bench.json \
 		artifacts/probes
+
+# Use installed hf dependencies and saved probes; no training or serving bench.
+week7-rescore:
+	$(PYTHON) -m smaip.cli week7-rescore --device "$${SMAIP_PROBE_DEVICE:-auto}"
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"

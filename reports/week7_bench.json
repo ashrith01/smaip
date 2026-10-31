@@ -1,0 +1,86 @@
+{
+  "skipped": false,
+  "reason": "",
+  "cuda": true,
+  "vllm": true,
+  "model_id": "Qwen/Qwen2.5-3B-Instruct",
+  "max_new_tokens": 32,
+  "levels": [
+    {
+      "concurrency": 1,
+      "hf": {
+        "schedule": "padded-batch",
+        "requests": 1,
+        "output_tokens": 32,
+        "tokens_per_s": 22.974462672832562,
+        "ttft_ms": 154.9700870000379,
+        "latency_p50_ms": 1392.8508560002228,
+        "latency_p95_ms": 1392.8508560002228
+      },
+      "vllm": {
+        "schedule": "continuous-batch",
+        "requests": 1,
+        "output_tokens": 32,
+        "tokens_per_s": 25.55775160535679,
+        "ttft_p50_ms": null,
+        "ttft_p95_ms": null,
+        "latency_p50_ms": 1252.0663200002673,
+        "latency_p95_ms": 1252.0663200002673,
+        "wall_s": 1.2520663200002673
+      }
+    },
+    {
+      "concurrency": 4,
+      "hf": {
+        "schedule": "padded-batch",
+        "requests": 4,
+        "output_tokens": 128,
+        "tokens_per_s": 81.32585288902041,
+        "ttft_ms": 82.38963700023305,
+        "latency_p50_ms": 1573.9152490004926,
+        "latency_p95_ms": 1573.9152490004926
+      },
+      "vllm": {
+        "schedule": "continuous-batch",
+        "requests": 4,
+        "output_tokens": 72,
+        "tokens_per_s": 53.09235499953226,
+        "ttft_p50_ms": null,
+        "ttft_p95_ms": null,
+        "latency_p50_ms": 339.0318624999509,
+        "latency_p95_ms": 339.0318624999509,
+        "wall_s": 1.3561274499998035
+      }
+    },
+    {
+      "concurrency": 8,
+      "hf": {
+        "schedule": "padded-batch",
+        "requests": 8,
+        "output_tokens": 256,
+        "tokens_per_s": 153.0895939966744,
+        "ttft_ms": 78.70667999941361,
+        "latency_p50_ms": 1672.2233910004434,
+        "latency_p95_ms": 1672.2233910004434
+      },
+      "vllm": {
+        "schedule": "continuous-batch",
+        "requests": 8,
+        "output_tokens": 144,
+        "tokens_per_s": 104.40645197423267,
+        "ttft_p50_ms": null,
+        "ttft_p95_ms": null,
+        "latency_p50_ms": 172.40313849993072,
+        "latency_p95_ms": 172.40313849993072,
+        "wall_s": 1.3792251079994458
+      }
+    }
+  ],
+  "defense_overhead": {
+    "backend": "trained",
+    "requests": 80,
+    "mean_ms": 62.7074705999803,
+    "p50_ms": 0.028184500479255803,
+    "p95_ms": 5.1883741497019225
+  }
+}

@@ -43,7 +43,7 @@ Pytest skips tests marked `hf` unless `SMAIP_RUN_HF=1`. That test loads `Qwen/Qw
 
 Does not rerun the Week 6 gate. It installs `.[dev]`, then runs `python -m smaip.cli week7 --subset tiny` with the model id `Qwen/Qwen2.5-0.5B-Instruct`, then `python -m smaip.cli bench`.
 
-`SMAIP_PROBE_BACKEND=mock` (what the CI job sets) uses a deterministic token hash instead of a forward pass. No weights are downloaded. The command writes `reports/RESULTS_week7.md` and `reports/week7_eval.json`, and the bench writes `reports/week7_bench.json` with `skipped: true` when CUDA or vLLM is absent. The bench exits 0 in that case.
+`SMAIP_PROBE_BACKEND=mock` (what the CI job sets) uses a deterministic token hash instead of a forward pass. No weights are downloaded. The smoke command writes `reports/smoke/RESULTS_week7.md` and `reports/smoke/week7_eval.json`, and the bench writes `reports/smoke/week7_bench.json` with `skipped: true` when CUDA or vLLM is absent. The bench exits 0 in that case.
 
 Without the mock backend, and with `.[hf]` installed, the same target loads `Qwen/Qwen2.5-0.5B-Instruct` on CPU (or on CUDA if a GPU is visible and the device is left on `auto`). The tiny subset is a fixed prefix of the tool outputs and of the Week 5 and Week 6 pages, plus two benign and two attack episodes from each suite. The full subset is `make week7-gpu`.
 
@@ -60,3 +60,9 @@ The CI job `docker-build` runs `docker build -t smaip:ci .`. It does not start t
 ## Reports
 
 `reports/*.json` and `reports/traces/` are gitignored. Regenerate a table with `make eval`, `python3 -m smaip.cli week3`, `python3 -m smaip.cli week4`, `python3 -m smaip.cli week5`, or `python3 -m smaip.cli week6`. Week 5 and Week 6 each rewrite `reports/RESULTS.md` and `reports/FAILURES.md`. `make week6` runs Week 6 last, so the committed report is the Week 6 one. Latency in those files is wall clock from that run.
+
+## Recovery and rescore
+
+`make week7-rescore` reuses saved probes; it does not train them or run the serving benchmark. `SMAIP_PROBE_DEVICE=cuda` selects the GPU and `cpu` selects CPU. Results are written to `reports/RESULTS_week7_rescore.md` and `reports/week7_rescore.json`, leaving the original GPU training results intact. The real 3B rescore has returned and is independently checked in `reports/WEEK7_RESCORE_ANALYSIS.md`; it retains one linear/full-stack false positive and a near-threshold validation discrepancy. Mock tests establish software behavior only.
+
+`tests/test_week7_recovery.py` covers document versus digest scoring, malicious-source blocking, multi-page boundaries, rescore without refitting, immutable probe hashes/thresholds, missing-artifact failure, diagnostic cache behavior, and CPU precision/cache configuration. The manual GPU rescore must establish the corrected utility/FPR/ASR. See `reports/EXPERIMENT_AUDIT_2026-10-30.md` for limitations of the fixture-based research claims.

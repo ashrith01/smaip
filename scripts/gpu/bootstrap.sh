@@ -16,12 +16,31 @@ fi
 echo "NVIDIA driver check:"
 nvidia-smi
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "python3 is required." >&2
-  exit 1
+# Keep a suitable installed interpreter; Ubuntu 22.04 needs >=3.11 + venv.
+as_root() {
+  if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi
+}
+SMAIP_PYTHON="${SMAIP_PYTHON:-python3}"
+if ! "$SMAIP_PYTHON" -c 'import sys, venv, ensurepip; assert sys.version_info >= (3, 11)' >/dev/null 2>&1; then
+  if command -v python3.11 >/dev/null 2>&1 && python3.11 -c 'import venv, ensurepip' >/dev/null 2>&1; then
+    SMAIP_PYTHON=python3.11
+  else
+    # shellcheck disable=SC1091
+    source /etc/os-release
+    if [[ "$ID" != ubuntu || "$VERSION_ID" != 22.04 ]]; then
+      echo "Install Python >=3.11 with venv, then set SMAIP_PYTHON to its path." >&2
+      exit 1
+    fi
+    as_root apt-get update
+    as_root apt-get install -y software-properties-common ca-certificates
+    as_root add-apt-repository -y ppa:deadsnakes/ppa
+    as_root apt-get update
+    as_root apt-get install -y python3.11 python3.11-venv
+    SMAIP_PYTHON=python3.11
+  fi
 fi
 
-python3 -m venv .venv
+"$SMAIP_PYTHON" -m venv .venv
 # shellcheck disable=SC1091
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -36,6 +55,7 @@ mkdir -p "$HF_HOME"
 cat > .venv/smaip-gpu.env <<EOF
 HF_HOME=$HF_HOME
 HF_HUB_CACHE=$HF_HOME/hub
+CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
 SMAIP_PROBE_MODEL=\${SMAIP_PROBE_MODEL:-Qwen/Qwen2.5-3B-Instruct}
 SMAIP_PROBE_DEVICE=cuda
 SMAIP_PROBE_SUBSET=full

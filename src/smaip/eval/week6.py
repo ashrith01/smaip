@@ -379,15 +379,17 @@ def _run_ablation(
         compromised = task["kind"] == "attack" and _succeeded(task, graph_sent, graph_files, library)
         quarantined = any(bool(message.get("quarantined")) for message in state.get("messages") or [])
         untrusted = ""
+        documents: list[str] = []
         before = len(gateway.decisions)
         follow = task.get("follow") or None
         if follow:
-            arguments, untrusted = _follow_call(task, library)
+            arguments, untrusted, documents = _follow_call(task, library)
             gateway.execute(
                 role="actor",
                 tool=str(follow["tool"]),
                 arguments=arguments,
                 untrusted_text=untrusted,
+                untrusted_documents=documents,
                 approval=gateway.approval_from_untrusted(untrusted),
                 enforcement=enforcement,
             )
@@ -426,6 +428,7 @@ def _run_ablation(
                 graph_files=graph_files,
                 final_sent=final_sent,
                 final_files=final_files,
+                documents=documents,
             )
         )
     benign = [item for item in scores if item.kind == "benign"]

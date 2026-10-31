@@ -1,0 +1,9 @@
+{
+  "archive_sha256": "ef37737678797e463643ddad0bf527aceafdbeb047039c68e8b1a4a9f1966e6d",
+  "files": {
+    "tokens.json": "8e96eb26d3dbf4030844e71192f9b0dffa32dbfcbe9a8b394a6c700badca1439",
+    "vectors.jsonl.gz": "7b1ec312c1e69e3b221be49e6f0700229ac0eeffa8f8321b3bdb4bdb7bc63b2b",
+    "parity.json": "0db2cdacef9dff72396a3487b008e1da9ab04114f947dbbc1dc807ad8cd6fec1",
+    "RESULTS.md": "b62812a64a22a2071155e31950103a227c6c05a2d79ae416946cbb164abcd5c0"
+  }
+}

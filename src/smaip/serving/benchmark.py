@@ -118,10 +118,20 @@ def measure_defense_overhead(use_trained: bool, repeats: int = 20) -> dict:
         probe = MockActivationProbe()
         backend = "stub"
     keyword = KeywordHook()
+    from smaip.probes.activations import clear_pool_cache
+
+    for defense in (linear, probe):
+        if hasattr(defense, "preload"):
+            defense.preload()
     samples = []
     texts = list(PROMPTS)
     for _ in range(repeats):
         for text in texts:
+            # Measure inference misses rather than 76 cache hits out of 80.
+            for defense in (linear, probe):
+                if hasattr(defense, "clear_score_cache"):
+                    defense.clear_score_cache()
+            clear_pool_cache()
             started = time.perf_counter()
             keyword.flagged(text)
             linear.flagged(text)
@@ -129,6 +139,7 @@ def measure_defense_overhead(use_trained: bool, repeats: int = 20) -> dict:
             samples.append((time.perf_counter() - started) * 1000.0)
     return {
         "backend": backend,
+        "cache_policy": "text caches cleared per request; model preloaded",
         "requests": len(samples),
         "mean_ms": sum(samples) / len(samples),
         "p50_ms": _percentile(samples, 0.50),
@@ -242,19 +253,9 @@ def _vllm_level(engine, batch: list[str]) -> dict:
 def _release_cached_model() -> None:
     """Drop a probe-held model before the serving benchmark allocates its own."""
 
-    from smaip.probes import activations
+    from smaip.probes.activations import release_cached_model
 
-    activations._HF.clear()
-    try:
-        import gc
-
-        import torch
-
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except ImportError:
-        return
+    release_cached_model()
 
 
 def _batch(concurrency: int) -> list[str]:

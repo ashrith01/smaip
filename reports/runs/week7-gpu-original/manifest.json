@@ -1,0 +1,27 @@
+{
+  "source_archive": "week7-gpu-results.tar.gz",
+  "archive_sha256": "3d3d146592215820f827939f7208a4f1b4b906664c405825478bafb64c265996",
+  "recovered_on": "2026-10-30",
+  "files": {
+    "reports/RESULTS_week7.md": {
+      "bytes": 5833,
+      "sha256": "c6dfc6de8e126857b702a70168d810e89565e254f98e2c6d19804f464200c79f"
+    },
+    "reports/week7_eval.json": {
+      "bytes": 103712,
+      "sha256": "1038fe00b92ca1b4f8aeac8253483f126d7159442f6f09659188e2fb365516fd"
+    },
+    "reports/week7_bench.json": {
+      "bytes": 2333,
+      "sha256": "f4caeb4cf9fa748e19328de1e8bd4bcf33e6bcb956c1cf6021aa93358fef23bb"
+    },
+    "artifacts/probes/linear.json": {
+      "bytes": 160463,
+      "sha256": "bd9101c60fce3f9203ae549b66416979e19fd4b16e19af52f0b4ae932fef4c80"
+    },
+    "artifacts/probes/activation.json": {
+      "bytes": 161712,
+      "sha256": "03efef7f1000eccff04b404b63dcaeedfd8a9ecc7f871c938bb22302bb1140fd"
+    }
+  }
+}
