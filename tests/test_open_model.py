@@ -85,3 +85,67 @@ def test_completion_metadata_evicted_with_cache_entry():
     cache.put('b', 'two', metadata={'input_tokens': 3})
     assert cache.metadata('a') == {}
     assert cache.metadata('b') == {'input_tokens': 3}
+
+
+def test_vllm_agent_requests_pydantic_schema_and_never_silently_falls_back():
+    import json
+    from smaip.agents.action_schema import ACTION_SCHEMA
+    requests = []
+    def serve(request):
+        payload = json.loads(request.content)
+        requests.append(payload)
+        assert payload['response_format']['type'] == 'json_schema'
+        assert payload['response_format']['json_schema']['schema'] == ACTION_SCHEMA
+        return httpx.Response(200, json={'choices': [{'message': {'content': '{"final":"done"}'}}]})
+    engine = VllmLocalEngine(OpenModelConfig(), client=httpx.Client(transport=httpx.MockTransport(serve)))
+    result = engine.complete_action_result([{'role': 'user', 'content': 'research'}], ACTION_SCHEMA)
+    assert result.response_format == 'json_schema' and result.schema_sha256
+    assert len(requests) == 1
+
+
+def test_hf_attaches_token_filter_only_for_actions_and_reuses_tokenizer_data(monkeypatch):
+    import contextlib
+    import sys
+    from types import SimpleNamespace
+    import smaip.probes.activations as activations
+    import smaip.serving.structured as structured
+    from smaip.agents.action_schema import ACTION_SCHEMA
+    class Tensor:
+        shape = (1, 2)
+        def to(self, device):
+            return self
+    class Output:
+        def __getitem__(self, key):
+            return SimpleNamespace(shape=(1,))
+    class Tokenizer:
+        eos_token_id = 3
+        def apply_chat_template(self, *args, **kwargs):
+            return 'prompt'
+        def __call__(self, *args, **kwargs):
+            return {'input_ids': Tensor()}
+        def decode(self, *args, **kwargs):
+            return '{"final":"done"}'
+    generation_calls, builds, filters = [], [], []
+    def generate(**kwargs):
+        generation_calls.append(kwargs)
+        return Output()
+    def build_filter(data, schema, width):
+        filters.append((data, schema, width))
+        return lambda batch, tokens: [3]
+    tokenizer = Tokenizer()
+    monkeypatch.setitem(sys.modules, 'torch', SimpleNamespace(no_grad=contextlib.nullcontext))
+    monkeypatch.setitem(sys.modules, 'huggingface_hub', SimpleNamespace(snapshot_download=lambda *a, **k: '/cached/pinned'))
+    monkeypatch.setattr(activations, 'resolve_device', lambda *a: 'cpu')
+    monkeypatch.setattr(activations, '_load_hf', lambda *a: (SimpleNamespace(generate=generate), tokenizer))
+    monkeypatch.setattr(structured, 'tokenizer_data', lambda tokenizer: builds.append(tokenizer) or 'cached-data')
+    monkeypatch.setattr(structured, 'prefix_filter', build_filter)
+    engine = HfLocalEngine(OpenModelConfig())
+    chat = [{'role': 'user', 'content': 'research'}]
+    assert engine.complete_result(chat).response_format == 'text'
+    assert 'prefix_allowed_tokens_fn' not in generation_calls[0]
+    for _ in range(2):
+        completion = engine.complete_action_result(chat, ACTION_SCHEMA)
+        assert completion.response_format == 'json_schema' and completion.schema_sha256
+        assert callable(generation_calls[-1]['prefix_allowed_tokens_fn'])
+    assert len(builds) == 1 and len(filters) == 2
+    assert filters[0] == ('cached-data', ACTION_SCHEMA, 2)

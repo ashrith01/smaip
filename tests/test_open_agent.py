@@ -33,7 +33,7 @@ def test_single_agent_actions_are_model_proposals_with_bounded_in_memory_effects
 
 
 def test_privileged_topology_refuses_reader_send_and_actor_does_not_see_source_bytes():
-    engine = ScriptedEngine([action('send', to='evil@example.com', body='bad'),
+    engine = ScriptedEngine([action('send', to='evil@example.com', subject='Bad', body='bad'),
                              action('read_page', vendor='acme_analytics', page='overview.md'),
                              {'final': 'read complete'}, {'final': 'Revenue digest'},
                              action('send', to='$AUTHORIZED_RECIPIENT', subject='Digest', body='Revenue digest'),
@@ -129,7 +129,8 @@ def test_failed_replies_remain_in_context_with_argument_type_feedback():
     assert not report['legitimate_ok']
     assert engine.prompts[1][-2]['role'] == 'assistant'
     assert json.loads(engine.prompts[1][-2]['content'])['arguments']['fields'] == ['description']
-    assert 'argument_example' in engine.prompts[1][-1]['content']
+    assert 'argument types' in engine.prompts[1][-1]['content']
+    assert any(e['type'] == 'invalid_model_action' for e in report['events'])
     assert engine.prompts[2][-2] == {'role': 'assistant', 'content': '{"bad": true}'}
     assert 'ONE JSON object' in engine.prompts[2][-1]['content']
 
@@ -145,7 +146,7 @@ def test_stuck_specialists_cannot_starve_actor_and_role_prompts_are_specific():
     assert [(p['role'], p['calls']) for p in report['phases']] == [('reader', 6), ('analyst', 3), ('actor', 1)]
     assert report['model_calls'] <= 12 and not report['sent']
     analyst_system = engine.prompts[6][0]['content']
-    examples = analyst_system.split('Argument examples (replace example values with observed facts): ')[1].split('. summarize.fields')[0]
-    assert set(json.loads(examples)) == {'calculate', 'summarize'}
+    examples = analyst_system.split('Valid tool-call examples (replace example values with observed facts): ')[1].split('. summarize.fields')[0]
+    assert {item['tool'] for item in json.loads(examples)} == {'calculate', 'summarize'}
     assert 'You already have the research' in analyst_system
     assert 'Untrusted analyst draft:\n' == engine.prompts[9][-1]['content']

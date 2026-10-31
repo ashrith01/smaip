@@ -28,6 +28,8 @@ class Completion:
     input_tokens: int | None
     output_tokens: int | None
     latency_ms: float
+    response_format: str = 'text'
+    schema_sha256: str | None = None
 
     def as_dict(self):
         return asdict(self)
@@ -79,12 +81,21 @@ def validate_messages(messages):
 
 class HfLocalEngine(Engine):
     name = 'hf-local'
+    action_decoding = 'lm-format-enforcer-0.11.3'
 
     def __init__(self, config):
         self.config = config
         self.cache_namespace = self.name + ':' + config.fingerprint
+        self._structured_tokenizer = None
+        self._structured_data = None
 
     def complete_result(self, messages):
+        return self._complete_result(messages)
+
+    def complete_action_result(self, messages, schema):
+        return self._complete_result(messages, schema=schema)
+
+    def _complete_result(self, messages, *, schema=None):
         chat = validate_messages(messages)
         try:
             from huggingface_hub import snapshot_download
@@ -99,14 +110,24 @@ class HfLocalEngine(Engine):
             if width > self.config.max_input_tokens:
                 raise OpenModelUnavailable('prompt exceeds configured token budget; no truncation was applied')
             encoded = {key: value.to(device) for key, value in encoded.items()}
+            kwargs = {}
+            fingerprint = None
+            if schema is not None:
+                from smaip.serving.structured import tokenizer_data, prefix_filter, schema_fingerprint
+                if self._structured_tokenizer is not tokenizer:
+                    self._structured_data = tokenizer_data(tokenizer)
+                    self._structured_tokenizer = tokenizer
+                kwargs['prefix_allowed_tokens_fn'] = prefix_filter(self._structured_data, schema, width)
+                fingerprint = schema_fingerprint(schema)
             started = time.perf_counter()
             with torch.no_grad():
                 generated = model.generate(**encoded, max_new_tokens=self.config.max_new_tokens,
-                                           do_sample=False, pad_token_id=tokenizer.eos_token_id)
+                                           do_sample=False, pad_token_id=tokenizer.eos_token_id, **kwargs)
             new_ids = generated[0, width:]
             text = tokenizer.decode(new_ids, skip_special_tokens=True)
             return Completion(text, self.name, self.config.model_id, self.config.revision, width,
-                              int(new_ids.shape[-1]), (time.perf_counter() - started) * 1000)
+                              int(new_ids.shape[-1]), (time.perf_counter() - started) * 1000,
+                              'json_schema' if schema is not None else 'text', fingerprint)
         except OpenModelUnavailable:
             raise
         except Exception as exc:
@@ -118,6 +139,7 @@ class HfLocalEngine(Engine):
 
 class VllmLocalEngine(Engine):
     name = 'vllm-local'
+    action_decoding = 'vllm-json-schema'
 
     def __init__(self, config, *, client=None):
         self.config = config
@@ -125,11 +147,22 @@ class VllmLocalEngine(Engine):
         self.cache_namespace = self.name + ':' + config.fingerprint
 
     def complete_result(self, messages):
+        return self._complete_result(messages)
+
+    def complete_action_result(self, messages, schema):
+        return self._complete_result(messages, schema=schema)
+
+    def _complete_result(self, messages, *, schema=None):
         import httpx
         chat = validate_messages(messages)
         started = time.perf_counter()
         payload = {'model': self.config.model_id, 'messages': chat, 'temperature': 0,
                    'max_tokens': self.config.max_new_tokens, 'stream': False}
+        fingerprint = None
+        if schema is not None:
+            from smaip.serving.structured import schema_fingerprint
+            payload['response_format'] = {'type': 'json_schema', 'json_schema': {'name': 'smaip_action', 'schema': schema}}
+            fingerprint = schema_fingerprint(schema)
         try:
             if self.client is None:
                 with httpx.Client(timeout=90, trust_env=False, follow_redirects=False) as client:
@@ -147,7 +180,8 @@ class VllmLocalEngine(Engine):
                 raise ValueError('invalid token usage')
             # The service does not attest its model commit. Keep revision unknown.
             return Completion(text, self.name, self.config.model_id, None, counts[0], counts[1],
-                              (time.perf_counter() - started) * 1000)
+                              (time.perf_counter() - started) * 1000,
+                              'json_schema' if schema is not None else 'text', fingerprint)
         except Exception as exc:
             raise OpenModelUnavailable('self-hosted vLLM generation failed; check its endpoint, served model and token budget') from exc
 

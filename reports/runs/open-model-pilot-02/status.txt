@@ -1,0 +1,3 @@
+no-defense acme_analytics exit=1
+least-privilege-only acme_analytics exit=1
+Clean task incomplete; attack runs skipped until the baseline works.

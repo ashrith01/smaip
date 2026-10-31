@@ -18,6 +18,7 @@ Commit `9d13c05` preserves the verified v1 recovery, trained probe parameters an
 - `hf-local` / `vllm-local`: opt-in generation backends. HF uses the cached pinned snapshot and the existing model loader, with greedy decoding and explicit token limits. vLLM uses a loopback self-hosted endpoint (SSH forwarding can expose a remote GPU locally), with no provider SDK or key. Neither backend loads weights/connects merely by being constructed.
 - The chat API accepts these new explicit selectors when enabled. Cache keys include backend/model/configuration identity. Backend-reported token counts are retained on cache hits; absent counts are marked as estimates. New open-model paths reject nonzero temperature because their evaluation policy fixes greedy decoding. Backend failures return 503.
 - `smaip agent-v2`: a bounded LangGraph pilot with model-proposed JSON actions, single-agent and reader/analyst/actor topologies, role-capability checks and in-memory tool effects. Quarantined raw content is not forwarded to a model. Gateway variants require an approval digest bound to the exact proposed action; a model cannot set it through arguments. Traces preserve model/backend usage, refused actions, quarantine and actual enabled detector scores.
+- Agent protocol 3 uses strict Pydantic response models for each tool and `final`. Their shared JSON Schema drives HF token filtering with lm-format-enforcer 0.11.3 and vLLM JSON-schema requests. The same schema applies across roles/ablations; it constrains formatting and types, while leaving permission checks and factual quality separate. Model/action-schema hashes and decoding mode are recorded. The pinned helper adds a small dependency; no hosted provider is involved.
 
 The new runtime only accesses local vendor fixtures and an in-memory workspace. It does not send real email, write user files or expose arbitrary execution. `POST /v2/agent/tasks` exposes the bounded pilot behind the existing authentication/body/rate guard. Approval currently uses an exact-digest confirmed rerun, not persisted graph resumption. No live web-fetch adapter, deployed persistent review/resume API, complete external benchmark adapter or dataset-v2 corpus has been added yet.
 
@@ -25,18 +26,18 @@ The new runtime only accesses local vendor fixtures and an in-memory workspace. 
 
 Local tests cover contract semantics, tie-aware low-FPR calibration without test fitting, group/family/text leakage rejection, content masks, old/new artifact incompatibility, self-hosted transport and exact cache usage, role separation, quarantine, bounded invalid model outputs and action-bound approval. Network calls are mocked in the transport tests; scripted model responses are explicitly labeled test inputs, not measured model quality.
 
-The HF adapter has now executed the first four-task GPU pilot using the pinned Qwen snapshot. All four tasks were incomplete; no attack-resistance or factual-utility claim follows. See `reports/OPEN_MODEL_PILOT_01_ANALYSIS.md` and the preserved raw evidence in `reports/runs/open-model-pilot-01/`. The vLLM adapter and V2 feature extractor still require GPU validation. No new trained V2 probes, independent accuracy values, dollars-per-token numbers or model-driven attack-resistance gains are claimed. Existing V1 scores retain their recorded limitations.
+The HF adapter has executed two GPU pilots using the pinned Qwen snapshot. Pilot 01's four tasks were incomplete. Pilot 02 verified all 205 files from checkpoint `bdda93b` on the A16 and let the actor run, but both clean tasks still failed on response format/factual behavior; attack cases were skipped. See `reports/OPEN_MODEL_PILOT_01_ANALYSIS.md`, `reports/OPEN_MODEL_PILOT_02_ANALYSIS.md`, and their raw `reports/runs/` directories. The new protocol-3 constrained generation, live vLLM adapter and V2 feature extractor still require GPU validation. No new trained V2 probes, independent accuracy values, dollars-per-token numbers or model-driven attack-resistance gains are claimed. Existing V1 scores retain their recorded limitations.
 
 The `agent-v2` CLI currently exposes the no-defense, keyword-screen, least-privilege-only and gateway-only pilot variants. Learned-detector/full-stack runs require explicitly constructed V2 probes in the runtime and new data/training; there is no silent fallback to V1 weights or phrase stubs.
 
 ## Validation recorded for this checkpoint
 
-- Initial checkpoint suite: **193 passed, 2 optional HF tests skipped**. After pilot-01 orchestration repairs: **196 passed, 2 optional HF tests skipped**.
+- Initial checkpoint suite: **193 passed, 2 optional HF tests skipped**. After pilot-01 orchestration repairs: **196 passed, 2 optional HF tests skipped**. Protocol-3 Pydantic/constrained-response integration: **213 passed, 2 optional HF tests skipped**.
 - `make week6 -o install`: all legacy evaluation gates passed using the already installed development environment.
 - Mock `make week7-cpu -o install`: passed; vLLM bench correctly skipped without CUDA.
 - Both V1 evidence analyzers passed against frozen source commit `9d13c05`; original probe hashes/results remain unchanged.
 - The negative `brd-gate` check returned `pending` and exit code 1, as required for unmeasured contract input.
-- No real model generation, weight download, new training, public deployment or hosted-provider call was executed locally. Returned GPU evidence verifies original HF generation; revised agent protocol version 2 still needs a manual GPU run.
+- No real model generation, model-weight download, new training, public deployment or hosted-provider call was executed locally. A tokenizer-only check downloaded the pinned Qwen tokenizer JSON, accepted eight valid action forms and rejected four malformed forms using its 151,665-token vocabulary. Returned GPU evidence verifies protocol-2 HF generation; protocol 3 still needs a manual GPU run. Tokenizer-only validation does not measure agent quality.
 
 ## Local commands
 
@@ -54,40 +55,41 @@ To validate a future JSONL dataset, each row must have `id`, `text`, `label` (0/
 .venv/bin/python -m smaip.cli validate-corpus-v2 /path/to/reviewed-corpus.jsonl
 ```
 
-## Next manual GPU pilot — revision 2
+## Next manual GPU pilot — revision 3
 
-A separately named transfer bundle `reports/brd-open-model-v2-r2.tar.gz` contains the repaired code. It preserves the first GPU checkout and results. From the Mac:
+A separately named transfer bundle `reports/brd-open-model-v2-r3.tar.gz` contains the Pydantic/constrained-response code and the pinned 45 KB decoder wheel. It preserves earlier GPU checkouts and results. From the Mac:
 
 ```bash
-scp "/Users/ashrithvadde/Documents/GitHub/smaip/reports/brd-open-model-v2-r2.tar.gz" root@45.63.76.130:/root/
+scp "/Users/ashrithvadde/Documents/GitHub/smaip/reports/brd-open-model-v2-r3.tar.gz" root@45.63.76.130:/root/
 ssh root@45.63.76.130
 ```
 
 On the GPU:
 
 ```bash
-test ! -e /root/smaip-open-model-v2-r2 || { echo "Choose a fresh extraction directory; preserve existing results."; exit 1; }
-tar -xzf /root/brd-open-model-v2-r2.tar.gz -C /root
+test ! -e /root/smaip-open-model-v2-r3 || { echo "Choose a fresh extraction directory; preserve existing results."; exit 1; }
+tar -xzf /root/brd-open-model-v2-r3.tar.gz -C /root
 source /root/smaip/.venv/bin/activate
 ```
 
-Use the virtual environment and HF cache path that succeeded previously. If those paths differ, reuse the previous values. No package reinstall is part of this pilot.
+Use the virtual environment and HF cache path that succeeded previously. If those paths differ, reuse the previous values. Install only the bundled decoder wheel, offline and without resolving or upgrading other packages. Its dependencies (Pydantic, interegular, packaging, PyYAML) are already present in the returned GPU package list.
 
  Use a fresh checkout directory so the previous recovery checkout and all its evidence remain intact. Activate the same GPU Python environment as before, then:
 
 ```bash
-cd /root/smaip-open-model-v2-r2
+cd /root/smaip-open-model-v2-r3
+python -m pip install --no-index --no-deps vendor/lm_format_enforcer-0.11.3-py3-none-any.whl
 bash scripts/gpu/open_model_pilot.sh
 ```
 
-The script uses the already-cached Qwen2.5-3B snapshot `aa8e72537993ba99e69dfaafa59ed015b17504d1` in fp16, one visible GPU, and offline access. It runs clean Acme in both topologies first; if either is incomplete it skips the poisoned Helix tasks. Otherwise it runs Helix in both topologies. No probe model is loaded, so generation does not duplicate a detector's 3B model on the A16. It installs nothing, does not retrain and produces only sandboxed effects. Runtime has not been measured for this revised pilot.
+The script uses the already-cached Qwen2.5-3B snapshot `aa8e72537993ba99e69dfaafa59ed015b17504d1` in fp16, one visible GPU, and offline access. It runs clean Acme in both topologies first; if either is incomplete it skips the poisoned Helix tasks. Otherwise it runs Helix in both topologies. No probe model is loaded, so generation does not duplicate a detector's 3B model on the A16. The script installs nothing, does not retrain and produces only sandboxed effects. The explicit wheel-install command above adds just the pinned decoder, preserving Torch/Transformers/vLLM. Runtime has not been measured for this revised pilot.
 
-Outputs include per-run JSON/model/tool traces, logs, phase termination, exit statuses, bundle verification, GPU metadata, the evaluation contract and package versions in `reports/v2/open-model-pilot-02.tar.gz`. An incomplete task is preserved as an observed outcome. A generation runtime exception is preserved in its log and stops further calls. No task failure is relabeled as a model success. If the pilot output exists already, choose a new `SMAIP_PILOT_OUTPUT` path.
+Outputs include per-run JSON/model/tool traces, Pydantic-schema/decoder identity, phase termination, exit statuses, bundle verification, GPU metadata, the evaluation contract and package versions in `reports/v2/open-model-pilot-03.tar.gz`. An incomplete task is preserved as an observed outcome. A generation runtime exception is preserved in its log and stops further calls. No task failure is relabeled as a model success. If the pilot output exists already, choose a new `SMAIP_PILOT_OUTPUT` path.
 
 Copy the result from a Mac Terminal:
 
 ```bash
-scp root@45.63.76.130:/root/smaip-open-model-v2-r2/reports/v2/open-model-pilot-02.tar.gz "/Users/ashrithvadde/Documents/GitHub/smaip/reports/"
+scp root@45.63.76.130:/root/smaip-open-model-v2-r3/reports/v2/open-model-pilot-03.tar.gz "/Users/ashrithvadde/Documents/GitHub/smaip/reports/"
 ```
 
 Inspect that returned pilot before scaling to larger model-driven evaluation or claiming a susceptible baseline. A strong model may ignore these original attacks even with defenses off; that outcome would leave the baseline-susceptibility criterion unproven.
@@ -101,4 +103,4 @@ Inspect that returned pilot before scaling to larger model-driven evaluation or 
 5. Validate actual HF/vLLM API serving on the rental; repair/repeat the serving benchmark with request-level percentiles, token accounting, cache conditions and the owner's actual hourly rate. Keep vLLM serving and probe memory ownership explicit on the one-card host.
 6. Complete architecture/threat documentation, reproducible release, demo/write-up and public publication only after the declared acceptance conditions are addressed.
 
-References used for implementation: [Hugging Face fast-tokenizer offset mappings](https://huggingface.co/docs/transformers/main_classes/tokenizer), [vLLM self-hosted online serving](https://docs.vllm.ai/en/latest/serving/online_serving/). These document interfaces; they do not validate this implementation's model quality.
+References used for implementation: [Hugging Face fast-tokenizer offset mappings](https://huggingface.co/docs/transformers/main_classes/tokenizer), [vLLM self-hosted online serving](https://docs.vllm.ai/en/latest/serving/online_serving/), [lm-format-enforcer](https://github.com/noamgat/lm-format-enforcer), [vLLM structured outputs](https://docs.vllm.ai/en/latest/features/structured_outputs/). These document interfaces; they do not validate this implementation's model quality.

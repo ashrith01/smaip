@@ -15,7 +15,17 @@ export SMAIP_OPEN_MODEL_ID=Qwen/Qwen2.5-3B-Instruct
 export SMAIP_OPEN_MODEL_REVISION=aa8e72537993ba99e69dfaafa59ed015b17504d1
 export SMAIP_OPEN_MODEL_MAX_NEW_TOKENS=256
 SMAIP_PYTHON="${SMAIP_PYTHON:-python}"
-SMAIP_PILOT_OUTPUT="${SMAIP_PILOT_OUTPUT:-reports/v2/open-model-pilot-02}"
+SMAIP_PILOT_OUTPUT="${SMAIP_PILOT_OUTPUT:-reports/v2/open-model-pilot-03}"
+"$SMAIP_PYTHON" - <<'PY'
+from importlib.metadata import version
+try:
+    assert version('lm-format-enforcer') == '0.11.3'
+    from lmformatenforcer import JsonSchemaParser
+    from smaip.agents.action_schema import ACTION_SCHEMA
+    JsonSchemaParser(ACTION_SCHEMA)
+except Exception as exc:
+    raise SystemExit('Structured decoding preflight failed. Install the bundled lm-format-enforcer 0.11.3 wheel in the active environment, then retry.') from exc
+PY
 if [[ -e "$SMAIP_PILOT_OUTPUT" ]]; then
   echo "Pilot output already exists; preserve it and choose a new SMAIP_PILOT_OUTPUT directory." >&2
   exit 1
@@ -40,12 +50,15 @@ PY
 fi
 "$SMAIP_PYTHON" - "$SMAIP_PILOT_OUTPUT/runtime.json" <<'PY'
 import json, platform, sys, torch
+from importlib.metadata import version
 from pathlib import Path
 Path(sys.argv[1]).write_text(json.dumps({
     'python': platform.python_version(), 'torch': torch.__version__,
     'cuda': torch.version.cuda, 'gpu': torch.cuda.get_device_name(0),
     'gpu_memory_bytes': torch.cuda.get_device_properties(0).total_memory,
-    'agent_protocol_version': 2,
+    'agent_protocol_version': 3,
+    'pydantic': version('pydantic'),
+    'lm_format_enforcer': version('lm-format-enforcer'),
 }, indent=2) + '\n')
 PY
 "$SMAIP_PYTHON" -m smaip.cli eval-contract --backend hf-local --model "$SMAIP_OPEN_MODEL_ID" --output "$SMAIP_PILOT_OUTPUT/contract.json"
