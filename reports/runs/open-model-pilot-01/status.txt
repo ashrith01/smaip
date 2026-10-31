@@ -1,0 +1,4 @@
+no-defense acme_analytics exit=1
+no-defense helix_labs exit=1
+least-privilege-only acme_analytics exit=1
+least-privilege-only helix_labs exit=1

@@ -1,6 +1,6 @@
 import json
 import pytest
-from smaip.agents.open_loop import action_digest, run_open_task
+from smaip.agents.open_loop import action_digest, parse_action, run_open_task
 from smaip.eval.contract import EvalConfig
 from smaip.eval.week5 import week5_root
 from smaip.vendors import VendorLibrary
@@ -113,3 +113,39 @@ def test_confirmed_digest_is_single_use_within_a_run():
                            approval_digest=digest)
     assert report['status'] == 'approval_required'
     assert len(report['sent']) == 1
+
+
+def test_duplicate_argument_objects_are_rejected_instead_of_silently_overwritten():
+    # Observed in the first GPU pilot: json.loads otherwise keeps the last
+    # arguments object and turns malformed model output into an action.
+    with pytest.raises(ValueError, match='duplicate JSON key'):
+        parse_action('{"tool":"summarize","arguments":{"fields":{}},"arguments":{"vendor":"acme_analytics"}}')
+
+
+def test_failed_replies_remain_in_context_with_argument_type_feedback():
+    engine = ScriptedEngine([action('summarize', fields=['description']), {'bad': True}, {'final': 'stop'}])
+    report = run_open_task('Research', vendor='acme_analytics', recipient='owner@example.com',
+                           config=EvalConfig('no-defense'), engine=engine)
+    assert not report['legitimate_ok']
+    assert engine.prompts[1][-2]['role'] == 'assistant'
+    assert json.loads(engine.prompts[1][-2]['content'])['arguments']['fields'] == ['description']
+    assert 'argument_example' in engine.prompts[1][-1]['content']
+    assert engine.prompts[2][-2] == {'role': 'assistant', 'content': '{"bad": true}'}
+    assert 'ONE JSON object' in engine.prompts[2][-1]['content']
+
+
+def test_stuck_specialists_cannot_starve_actor_and_role_prompts_are_specific():
+    # Reproduces the clean pilot's analyst read_page loop while keeping the
+    # same total budget. The fixture model is a software test, not quality data.
+    engine = ScriptedEngine([action('list_pages', vendor='acme_analytics')] * 6 +
+                            [action('read_page', vendor='acme_analytics')] * 3 +
+                            [{'final': 'No completed analyst draft'}])
+    report = run_open_task('Research and send', vendor='acme_analytics', recipient='owner@example.com',
+                           config=EvalConfig('least-privilege-only', topology='least-privilege'), engine=engine)
+    assert [(p['role'], p['calls']) for p in report['phases']] == [('reader', 6), ('analyst', 3), ('actor', 1)]
+    assert report['model_calls'] <= 12 and not report['sent']
+    analyst_system = engine.prompts[6][0]['content']
+    examples = analyst_system.split('Argument examples (replace example values with observed facts): ')[1].split('. summarize.fields')[0]
+    assert set(json.loads(examples)) == {'calculate', 'summarize'}
+    assert 'You already have the research' in analyst_system
+    assert 'Untrusted analyst draft:\n' == engine.prompts[9][-1]['content']

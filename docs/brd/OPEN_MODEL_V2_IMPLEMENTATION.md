@@ -25,18 +25,18 @@ The new runtime only accesses local vendor fixtures and an in-memory workspace. 
 
 Local tests cover contract semantics, tie-aware low-FPR calibration without test fitting, group/family/text leakage rejection, content masks, old/new artifact incompatibility, self-hosted transport and exact cache usage, role separation, quarantine, bounded invalid model outputs and action-bound approval. Network calls are mocked in the transport tests; scripted model responses are explicitly labeled test inputs, not measured model quality.
 
-The local HF/vLLM adapters and V2 feature extractor have not yet been exercised on the rented GPU. No new trained V2 probes, independent accuracy values, dollars-per-token numbers or model-driven attack-resistance gains are claimed. Existing V1 scores retain their recorded limitations.
+The HF adapter has now executed the first four-task GPU pilot using the pinned Qwen snapshot. All four tasks were incomplete; no attack-resistance or factual-utility claim follows. See `reports/OPEN_MODEL_PILOT_01_ANALYSIS.md` and the preserved raw evidence in `reports/runs/open-model-pilot-01/`. The vLLM adapter and V2 feature extractor still require GPU validation. No new trained V2 probes, independent accuracy values, dollars-per-token numbers or model-driven attack-resistance gains are claimed. Existing V1 scores retain their recorded limitations.
 
 The `agent-v2` CLI currently exposes the no-defense, keyword-screen, least-privilege-only and gateway-only pilot variants. Learned-detector/full-stack runs require explicitly constructed V2 probes in the runtime and new data/training; there is no silent fallback to V1 weights or phrase stubs.
 
 ## Validation recorded for this checkpoint
 
-- Full local suite: **193 passed, 2 optional HF tests skipped**.
+- Initial checkpoint suite: **193 passed, 2 optional HF tests skipped**. After pilot-01 orchestration repairs: **196 passed, 2 optional HF tests skipped**.
 - `make week6 -o install`: all legacy evaluation gates passed using the already installed development environment.
 - Mock `make week7-cpu -o install`: passed; vLLM bench correctly skipped without CUDA.
 - Both V1 evidence analyzers passed against frozen source commit `9d13c05`; original probe hashes/results remain unchanged.
 - The negative `brd-gate` check returned `pending` and exit code 1, as required for unmeasured contract input.
-- No real model generation, weight download, new training, public deployment or hosted-provider call was executed locally. GPU generation remains the next manual evidence step.
+- No real model generation, weight download, new training, public deployment or hosted-provider call was executed locally. Returned GPU evidence verifies original HF generation; revised agent protocol version 2 still needs a manual GPU run.
 
 ## Local commands
 
@@ -54,20 +54,20 @@ To validate a future JSONL dataset, each row must have `id`, `text`, `label` (0/
 .venv/bin/python -m smaip.cli validate-corpus-v2 /path/to/reviewed-corpus.jsonl
 ```
 
-## Next manual GPU pilot
+## Next manual GPU pilot — revision 2
 
-A separately named transfer bundle `reports/brd-open-model-v2.tar.gz` contains this code. From the Mac:
+A separately named transfer bundle `reports/brd-open-model-v2-r2.tar.gz` contains the repaired code. It preserves the first GPU checkout and results. From the Mac:
 
 ```bash
-scp "/Users/ashrithvadde/Documents/GitHub/smaip/reports/brd-open-model-v2.tar.gz" root@45.63.76.130:/root/
+scp "/Users/ashrithvadde/Documents/GitHub/smaip/reports/brd-open-model-v2-r2.tar.gz" root@45.63.76.130:/root/
 ssh root@45.63.76.130
 ```
 
 On the GPU:
 
 ```bash
-test ! -e /root/smaip-open-model-v2 || { echo "Choose a fresh extraction directory; preserve existing results."; exit 1; }
-tar -xzf /root/brd-open-model-v2.tar.gz -C /root
+test ! -e /root/smaip-open-model-v2-r2 || { echo "Choose a fresh extraction directory; preserve existing results."; exit 1; }
+tar -xzf /root/brd-open-model-v2-r2.tar.gz -C /root
 source /root/smaip/.venv/bin/activate
 ```
 
@@ -76,18 +76,18 @@ Use the virtual environment and HF cache path that succeeded previously. If thos
  Use a fresh checkout directory so the previous recovery checkout and all its evidence remain intact. Activate the same GPU Python environment as before, then:
 
 ```bash
-cd /root/smaip-open-model-v2
+cd /root/smaip-open-model-v2-r2
 bash scripts/gpu/open_model_pilot.sh
 ```
 
-The script uses the already-cached Qwen2.5-3B snapshot `aa8e72537993ba99e69dfaafa59ed015b17504d1` in fp16, one visible GPU, and offline access. It runs a small four-task pilot: clean Acme and poisoned Helix in single-agent and least-privilege modes. No probe model is loaded in these runs, so generation does not duplicate a detector's 3B model on the A16. It installs nothing, does not retrain and produces only sandboxed effects. Runtime has not been measured for this new pilot.
+The script uses the already-cached Qwen2.5-3B snapshot `aa8e72537993ba99e69dfaafa59ed015b17504d1` in fp16, one visible GPU, and offline access. It runs clean Acme in both topologies first; if either is incomplete it skips the poisoned Helix tasks. Otherwise it runs Helix in both topologies. No probe model is loaded, so generation does not duplicate a detector's 3B model on the A16. It installs nothing, does not retrain and produces only sandboxed effects. Runtime has not been measured for this revised pilot.
 
-Outputs include per-run JSON/model/tool traces, logs, exit statuses, the evaluation contract and package versions in `reports/v2/open-model-pilot.tar.gz`. An incomplete task is preserved as an observed outcome. A runtime exception is preserved in its log and stops further calls. No task failure is relabeled as a model success. If the pilot output exists already, choose a new `SMAIP_PILOT_OUTPUT` path.
+Outputs include per-run JSON/model/tool traces, logs, phase termination, exit statuses, bundle verification, GPU metadata, the evaluation contract and package versions in `reports/v2/open-model-pilot-02.tar.gz`. An incomplete task is preserved as an observed outcome. A generation runtime exception is preserved in its log and stops further calls. No task failure is relabeled as a model success. If the pilot output exists already, choose a new `SMAIP_PILOT_OUTPUT` path.
 
 Copy the result from a Mac Terminal:
 
 ```bash
-scp root@45.63.76.130:/root/smaip-open-model-v2/reports/v2/open-model-pilot.tar.gz "/Users/ashrithvadde/Documents/GitHub/smaip/reports/"
+scp root@45.63.76.130:/root/smaip-open-model-v2-r2/reports/v2/open-model-pilot-02.tar.gz "/Users/ashrithvadde/Documents/GitHub/smaip/reports/"
 ```
 
 Inspect that returned pilot before scaling to larger model-driven evaluation or claiming a susceptible baseline. A strong model may ignore these original attacks even with defenses off; that outcome would leave the baseline-susceptibility criterion unproven.

@@ -59,7 +59,7 @@ The tarball contains logistic probe parameters, not the 3B base checkpoint. The 
 
 ## Local continuation completed
 
-Work is on local branch `codex/week7-recovery`; it is uncommitted and unpushed.
+Work is on local branch `codex/week7-recovery`. The verified recovery was committed locally as `9d13c05`, and the initial open-model implementation as `9419253`; neither was pushed. For current V2 pilot status and revised commands see `docs/brd/OPEN_MODEL_V2_IMPLEMENTATION.md` and `reports/OPEN_MODEL_PILOT_01_ANALYSIS.md`. The following recovery notes describe the earlier V1 checkpoint.
 
 - Restored the actual GPU probes and original results, with source hashes and separate baseline copies.
 - Trained probes now score each raw source document separately. Generated digest arguments no longer become out-of-distribution probe inputs. A derived send/write checks the original read sources, preserving source-based blocking. Keyword/phrase defenses retain their previous argument scans.
