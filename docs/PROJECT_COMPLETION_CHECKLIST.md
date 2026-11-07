@@ -10,23 +10,22 @@ open-model-only decision remains in force.
 - [x] **1. Establish the current baseline.** Full local pytest run exited 0
   on 2026-11-07 (two skipped tests). Verified `origin` points to
   `ashrith01/smaip`; `.local-data/` model and evaluation artifacts are Git
-  ignored. The working tree still has 132 changed/untracked status entries.
-  This is a local check, not CI or a GitHub release.
-- [ ] **2. Reconcile the work tree for publication.** Review intended source,
-  tests, data, reports, and generated files; run a current security review;
-  inspect the staged diff. Preserve private data, original raw evidence, and
-  the old V1/V2 probe weights. Commit and push only the reviewed set.
+  ignored. The baseline working tree had 132 changed/untracked status entries.
+  This was a local check, not CI or a GitHub release.
+- [x] **2. Reconcile the work tree for publication.** Reviewed the intended
+  source, tests, data, and reports; fixed archive validation checks found in
+  the security review. The staged diff excluded private data, raw run
+  artifacts, and old V1/V2 probe weights. Commit `cef2a87` was pushed to
+  `origin/codex/week7-recovery` on 2026-11-07.
 - [x] **3. Prepare a clear project front door.** Updated the root
   `README.md` with the problem, one system diagram, exact capabilities, a
-  local mock demo, tests, public result links, and a plain limits section.
-  State that sandbox effects and archived Qwen experiments differ. Add the
-  root `GLOSSARY.md` and `docs/adr/` context referenced by `AGENTS.md`, which
-  are currently absent.
-- [x] **4. Make one reproducible demonstration.** The CPU-only scripted demo shows a legitimate task,
-  lower-trust content containing an instruction, the agent's evidence and
-  authority checks, and the resulting permitted or refused sandbox effect.
-  Make the command runnable without a GPU, model download, or private data.
-- [x] **5. Consolidate a public results page.** The draft page keeps separate the 25-task
+  local scripted demo, tests, result links, and a plain limits section. Added
+  the root `GLOSSARY.md` and `docs/adr/` context referenced by `AGENTS.md`.
+- [x] **4. Make one reproducible demonstration.** The CPU-only scripted demo
+  shows a legitimate task, lower-trust content containing an instruction,
+  evidence and authority checks, and the resulting refused or permitted
+  sandbox effect. It runs without a GPU, model download, or private data.
+- [x] **5. Consolidate a public results page.** The results page keeps separate the 25-task
   clean pilot (22/25 single agent, 23/25 specialist), the failed frozen V2
   external operating points (0/400 and 1/400 attacks caught), and the V4
   development scores (NVIDIA 680; LLMail 288; observed LLMail diagnostic
