@@ -1,6 +1,6 @@
 # SMAIP completion checklist
 
-Status checked 2026-11-07 on branch `codex/week7-recovery`. This distinguishes
+Status checked 2026-11-07 on `main`. This distinguishes
 a bounded, honest **portfolio release** from the stronger **BRD acceptance**
 claim. Completing the portfolio release does not certify the BRD. The owner's
 open-model-only decision remains in force.
@@ -25,17 +25,24 @@ open-model-only decision remains in force.
   shows a legitimate task, lower-trust content containing an instruction,
   evidence and authority checks, and the resulting refused or permitted
   sandbox effect. It runs without a GPU, model download, or private data.
-- [x] **5. Consolidate a public results page.** The results page keeps separate the 25-task
+- [x] **5. Consolidate a results page.** The results page keeps separate the 25-task
   clean pilot (22/25 single agent, 23/25 specialist), the failed frozen V2
   external operating points (0/400 and 1/400 attacks caught), and the V4
   development scores (NVIDIA 680; LLMail 288; observed LLMail diagnostic
-  cutoff 125/128 attacks and 0/160 benign flagged). Give every number its
-  denominator, dataset lineage, threshold status, and report link. Mark V4
-  source labels and LLMail as already observed development evidence.
-- [ ] **6. Package and check the portfolio release.** Fresh-checkout setup,
-  tests, demo, report links, dataset licenses/attribution, secret/private-file
-  scan, CI, and a final claim review. Publish the reviewed repository state;
-  only change repository visibility if the owner separately chooses that.
+  cutoff 125/128 attacks and 0/160 benign flagged). Each result has a
+  denominator, dataset lineage, threshold status, and report link. V4 source
+  labels and LLMail are identified as already observed development evidence.
+- [x] **6. Package and check the portfolio release.** PR [#8](https://github.com/ashrith01/smaip/pull/8)
+  merged the reviewed release into `main` at `412e450`. Its PR checks and all
+  seven [main CI jobs](https://github.com/ashrith01/smaip/actions/runs/42400072494)
+  passed, including fresh-checkout installation/tests and the CPU Docker build.
+  The staged-export test suite and demo also passed locally. README, results,
+  data, glossary, checklist, and ADR links resolved; `DATA.md` records dataset
+  origins and license declarations. A tracked-file scan found no key-shaped
+  credentials or `.local-data/` files. Final claims keep V4 development
+  rankings separate from validated detector and agent-effect results. The
+  repository remains **private**; public visibility needs a separate owner
+  decision.
 
 ## Evidence work that can improve the portfolio release
 
