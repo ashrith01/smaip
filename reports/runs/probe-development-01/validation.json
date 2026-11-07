@@ -1,0 +1,127 @@
+{
+  "archive_sha256": "ff9a571dae09e4860124ca30b1dea91f40962d27226eb535cc9b90b27f4947f0",
+  "source_bundle_sha256": "dd54a38285f6e6f64c9c5caf145dbe709010b0d89d403e2bf7908051d4ae36ef",
+  "verified_bundle_files": 152,
+  "verified_python_sources": 66,
+  "documents": 36,
+  "vectors": 72,
+  "finite_scalar_values": 147456,
+  "protocol_fingerprint": "e84129151cabbe6ba45e017c52310146af4c3606433d6fb30a34465bfc35ebe0",
+  "diagnostics": {
+    "linear.json": {
+      "calibration": {
+        "auroc": 0.8055555555555556,
+        "tp": 0,
+        "fp": 0,
+        "tn": 6,
+        "fn": 6,
+        "tpr": 0.0,
+        "fpr": 0.0,
+        "f1": 0.0,
+        "threshold": 0.952380227403302,
+        "negatives": 6,
+        "positives": 6,
+        "selection_split": "calibration",
+        "fpr_budget": 0.01,
+        "fpr_resolution": 0.16666666666666666,
+        "zero_fp_one_sided_95_upper": 0.39303776899708276,
+        "low_fpr_evidence_sufficient": false,
+        "note": "Sufficiency field uses a zero-event independent Bernoulli bound; group independence must be checked separately."
+      },
+      "test": {
+        "auroc": 1.0,
+        "tp": 0,
+        "fp": 0,
+        "tn": 6,
+        "fn": 6,
+        "tpr": 0.0,
+        "fpr": 0.0,
+        "f1": 0.0,
+        "threshold": 0.952380227403302,
+        "negatives": 6,
+        "positives": 6,
+        "threshold_source": "independent-calibration",
+        "calibration_fpr_budget": 0.01
+      },
+      "highest_benign_calibration": {
+        "score": 0.9523802274033019,
+        "id": "dev01-calibration-0-06"
+      },
+      "recomputed_fit_max_absolute_errors": {
+        "weights": 2.0816681711721685e-17,
+        "mean": 0.0,
+        "std": 8.881784197001252e-16,
+        "bias": 7.28583859910259e-17
+      }
+    },
+    "activation.json": {
+      "calibration": {
+        "auroc": 1.0,
+        "tp": 6,
+        "fp": 0,
+        "tn": 6,
+        "fn": 0,
+        "tpr": 1.0,
+        "fpr": 0.0,
+        "f1": 1.0,
+        "threshold": 0.593589928048717,
+        "negatives": 6,
+        "positives": 6,
+        "selection_split": "calibration",
+        "fpr_budget": 0.01,
+        "fpr_resolution": 0.16666666666666666,
+        "zero_fp_one_sided_95_upper": 0.39303776899708276,
+        "low_fpr_evidence_sufficient": false,
+        "note": "Sufficiency field uses a zero-event independent Bernoulli bound; group independence must be checked separately."
+      },
+      "test": {
+        "auroc": 0.9444444444444444,
+        "tp": 4,
+        "fp": 1,
+        "tn": 5,
+        "fn": 2,
+        "tpr": 0.6666666666666666,
+        "fpr": 0.16666666666666666,
+        "f1": 0.7272727272727272,
+        "threshold": 0.593589928048717,
+        "negatives": 6,
+        "positives": 6,
+        "threshold_source": "independent-calibration",
+        "calibration_fpr_budget": 0.01
+      },
+      "highest_benign_calibration": {
+        "score": 0.0974902508139986,
+        "id": "dev01-calibration-0-06"
+      },
+      "recomputed_fit_max_absolute_errors": {
+        "weights": 1.734723475976807e-17,
+        "mean": 0.0,
+        "std": 4.440892098500626e-16,
+        "bias": 2.688821387764051e-17
+      }
+    }
+  },
+  "recomputed_fits_match": true,
+  "recomputed_calibration_matches": true,
+  "recomputed_test_predictions_and_metrics_match": true,
+  "members_sha256": {
+    "probes/fit.json": "a8928e97b6d1388d051e606d0e0528f6a99ffa98b1c04ebbf7f253eeb4d2f5bb",
+    "probes/linear.json": "032e34f2bc8aec7b50a76ac99575eb5e2d3b6f7b089cf8dea5a09c834958e719",
+    "probes/activation.json": "5dbabd006e261dfe5c87e9be3abb99b58271aa5e63f3d14dbd90afdb97dca38b",
+    "evaluate.log": "1f81d5366bb444a401428aacf3d132592a58c23b02f085ae93bcbc0359fa9122",
+    "evaluation/evaluation.json": "1f81d5366bb444a401428aacf3d132592a58c23b02f085ae93bcbc0359fa9122",
+    "evaluation/predictions.json": "2f76fdf386f86ae2700ad84105e2ecd235461e122f9f44fd262adf357bd44f48",
+    "gpu.txt": "20bc44854628d019d2fec5ae3123a22564d6d00f237eb41d8e6223dd9339bbb1",
+    "fit.log": "a8928e97b6d1388d051e606d0e0528f6a99ffa98b1c04ebbf7f253eeb4d2f5bb",
+    "status.json": "db83889e243478530c0e41ffca455ad610bf3f947f7e00b1ef21119beb3717f7",
+    "collect.log": "cdd9a6a802540fc4431dc0f31138689c826048fd508a7ac686b9f0a024b00fdf",
+    "files-sha256.json": "66a9db224eb681ab2ba4b53776493f34e0067699e6af50c7af3d89c721cad55a",
+    "bundle-validation.json": "4576ebf4ef1cfa6ced5ed6e5b62fd7e29f279d1acd765154b715bbeec48658ee",
+    "collection/provenance.json": "c2deae5dfc97788fb447d20c0f2784697293d7417765c3857653286580c3e44e",
+    "collection/corpus.jsonl": "ec59c6d44322239a2221e357b9c4d32d0ceae2366efb28b5ccf2456048d1c004",
+    "collection/collection.json": "c5bebd59103d413b06fcf52c08893756c3b9bf1452bb92fa50cf9d092fc01dd4",
+    "collection/vectors.jsonl": "09eeec4031f8672b9aea77e7194334c59f4d31545bacc59f080ac8ed9ae68c62",
+    "packages.txt": "df112c1ef15c1a247dc69e8af7a34a9707c890970df87d205212ddc316e8dbb0"
+  },
+  "assessment": "First real V2 development probes verified. Linear threshold catches no test attacks; mean pooling has one false positive and two misses. Independent low-FPR acceptance remains pending."
+}

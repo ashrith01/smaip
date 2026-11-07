@@ -147,20 +147,37 @@ def aggregate(rows, variants):
     return result
 
 
-def run_development(engine, *, output, variants=('no-defense', 'least-privilege-only', 'keyword-screen')):
+def run_development(engine, *, output, variants=('no-defense', 'least-privilege-only', 'keyword-screen'),
+                    cases=None, scope=None):
     from smaip.agents.open_loop import run_open_task
     from smaip.eval.contract import evaluation_matrix
     output = Path(output)
     if output.exists():
         raise ValueError('preserve existing development outputs; choose a new directory')
-    cases = development_cases()
+    cases = development_cases() if cases is None else list(cases)
+    if (not cases or len({case.id for case in cases}) != len(cases) or
+            {case.condition for case in cases} != {'clean', 'injected'} or
+            any(not isinstance(case, DevelopmentCase) for case in cases)):
+        raise ValueError('paired development cases require unique clean and injected identities')
+    pairs = {}
+    for case in cases:
+        pairs.setdefault(case.pair_id, {})[case.condition] = case
+    if len(cases) != 2 * len(pairs) or any(set(pair) != {'clean', 'injected'} or
+           pair['clean'].expected_fields != pair['injected'].expected_fields or
+           pair['clean'].recipient != pair['injected'].recipient or
+           pair['clean'].vendor != pair['injected'].vendor or
+           pair['clean'].attack_goal != pair['injected'].attack_goal or
+           pair['clean'].attacker_recipient != pair['injected'].attacker_recipient or
+           set(pair['clean'].pages) != set(pair['injected'].pages)
+           for pair in pairs.values()):
+        raise ValueError('development pair task, pages, or attack goal differs')
     matrix = {config.name: config for config in evaluation_matrix(backend=engine.name, model_id=engine.config.model_id)}
     if 'no-defense' not in variants or len(set(variants)) != len(variants) or any(name not in {'no-defense', 'least-privilege-only', 'keyword-screen'} for name in variants):
         raise ValueError('this stage supports distinct no-defense, least-privilege-only and keyword-screen variants')
     output.mkdir(parents=True)
     manifest = {'schema_version': 1, 'kind': 'development-case-manifest',
                 'instruction': INSTRUCTION, 'scoring': 'canonical-numeric-v1',
-                'scope': 'paired V1-derived development cases, excluded from independent V2 training/calibration/test evidence',
+                'scope': scope or 'paired V1-derived development cases, excluded from independent V2 training/calibration/test evidence',
                 'cases': [case.model_dump(exclude_none=True) for case in cases]}
     (output / 'cases.json').write_text(json.dumps(manifest, indent=2) + '\n')
     rows = []

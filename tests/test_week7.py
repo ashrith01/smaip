@@ -232,7 +232,7 @@ def test_docs_makefile_and_ci_describe_the_gpu_path():
     assert ".[gpu]" in script
     assert "does not create" in script
     subprocess.run(["bash", "-n", str(ROOT / "scripts" / "gpu" / "bootstrap.sh")], check=True)
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme = (ROOT / "docs" / "DEVELOPMENT_HISTORY.md").read_text(encoding="utf-8")
     assert "make week7-cpu" in readme
     assert "make week7-gpu" in readme
     testing = (ROOT / "docs" / "TESTING.md").read_text(encoding="utf-8")

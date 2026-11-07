@@ -157,7 +157,7 @@ def test_week5_cli_writes_traces_results_and_failures(tmp_path: Path):
 
 def test_week5_docs_name_the_gate_the_screen_and_the_cpu_flag():
     root = Path(__file__).resolve().parents[1]
-    readme = (root / "README.md").read_text(encoding="utf-8")
+    readme = (root / "docs" / "DEVELOPMENT_HISTORY.md").read_text(encoding="utf-8")
     for snippet in (
         "make week5",
         "python3 -m smaip.cli week5",

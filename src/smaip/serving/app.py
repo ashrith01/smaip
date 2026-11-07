@@ -7,6 +7,8 @@ per-key rate limits are configurable via ServingSettings.
 """
 
 import json
+import hashlib
+import os
 import time
 import uuid
 from typing import Literal
@@ -61,10 +63,28 @@ class ChatRequest(BaseModel):
     redact_echo: bool = False
 
 
+class EvidenceTaskRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    vendor: str = Field(min_length=1, max_length=80)
+    recipient: str = Field(min_length=1, max_length=254)
+    pages: list[str] = Field(min_length=1, max_length=8)
+    required_fields: list[str] = Field(default_factory=list, max_length=7)
+    subject: str = Field(default='Vendor numeric summary', max_length=200)
+    backend: Literal['hf-local', 'vllm-local'] = 'hf-local'
+    topology: Literal['single-agent', 'least-privilege'] = 'least-privilege'
+
+
+class ReviewRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    action_digest: str = Field(pattern='^[a-f0-9]{64}$')
+    decision: Literal['approve', 'decline']
+
+
 def create_app(
     *,
     engine: Engine | None = None,
     settings: ServingSettings | None = None,
+    review_store=None,
 ) -> FastAPI:
     resolved = settings if settings is not None else ServingSettings.load()
     app = FastAPI(title="SMAIP", version=__version__)
@@ -74,7 +94,49 @@ def create_app(
     app.state.limiter = RateLimiter(resolved.rate_limit_per_minute)
     app.state.request_audit = RequestAudit()
     app.state.engine_override = engine
+    app.state.review_store = review_store
     configure_access_log(resolved.log_level)
+
+    def reviews():
+        if app.state.review_store is None:
+            from smaip.agents.review import ReviewStore
+            app.state.review_store = ReviewStore(os.environ.get('SMAIP_REVIEW_DB', 'artifacts/review/actions.sqlite3'))
+        return app.state.review_store
+
+    def review_owner(request):
+        from smaip.serving.guard import extract_api_key
+        key = extract_api_key(request.headers)
+        return hashlib.sha256(key.encode()).hexdigest() if key else 'anonymous-local'
+
+    @app.post('/v3/agent/tasks')
+    def evidence_task(body: EvidenceTaskRequest, request: Request):
+        from smaip.agents.evidence_task import TaskIntent, run_evidence_task
+        from smaip.eval.contract import EvalConfig
+        from smaip.serving.open_model import OpenModelUnavailable
+        from smaip.vendors import VendorLibrary
+        try:
+            intent = TaskIntent(body.vendor, body.recipient, tuple(body.pages), tuple(body.required_fields), body.subject)
+            selected = app.state.engine_override or engine_for_model(body.backend)
+            model_id = selected.config.model_id if hasattr(selected, 'config') else selected.name
+            config = EvalConfig('task-intent-evidence', topology=body.topology, backend=body.backend,
+                                model_id=model_id, max_new_tokens=getattr(getattr(selected, 'config', None), 'max_new_tokens', 256))
+            return run_evidence_task(intent, library=VendorLibrary(), engine=selected, config=config,
+                                     review_store=reviews(), owner=review_owner(request))
+        except (ValueError, UnknownEngine) as exc:
+            raise HTTPException(status_code=400, detail={'type': 'invalid_evidence_task', 'message': str(exc)}) from exc
+        except OpenModelUnavailable as exc:
+            raise HTTPException(status_code=503, detail={'type': 'backend_unavailable', 'message': str(exc)}) from exc
+
+    @app.post('/v3/agent/reviews/{review_id}/resolve')
+    def resolve_review(review_id: str, body: ReviewRequest, request: Request):
+        from smaip.agents.review import ReviewConflict
+        try:
+            return reviews().resolve(review_id, owner=review_owner(request), action_digest=body.action_digest,
+                                     approve=body.decision == 'approve')
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail='review not found') from exc
+        except (ReviewConflict, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.exception_handler(RequestValidationError)
     async def on_validation(request: Request, exc: RequestValidationError) -> JSONResponse:

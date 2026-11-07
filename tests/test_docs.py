@@ -1,12 +1,19 @@
-"""The written deliverables stay pointed at the Week 1 contract."""
+"""The current front door and preserved weekly guide remain usable."""
 
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_readme_is_stepwise():
+def test_readme_introduces_current_project():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
+    for snippet in ("scripts/demo_guarded_agent.py", "reports/PORTFOLIO_RESULTS.md",
+                    "validated serving threshold", "docs/DEVELOPMENT_HISTORY.md"):
+        assert snippet in text
+
+
+def test_development_history_is_stepwise():
+    text = (ROOT / "docs" / "DEVELOPMENT_HISTORY.md").read_text(encoding="utf-8")
     for snippet in (
         'pip install -e ".[dev]"',
         "make week1",
@@ -31,7 +38,7 @@ def test_makefile_targets():
 
 
 def test_week2_docs_ci_and_deploy_files():
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme = (ROOT / "docs" / "DEVELOPMENT_HISTORY.md").read_text(encoding="utf-8")
     for snippet in (
         "make week2",
         "make deploy",
@@ -75,7 +82,7 @@ def test_week2_docs_ci_and_deploy_files():
 
 
 def test_week3_docs_describe_the_mock_graph_and_suite():
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme = (ROOT / "docs" / "DEVELOPMENT_HISTORY.md").read_text(encoding="utf-8")
     for snippet in (
         "make week3",
         "python3 -m smaip.cli week3",

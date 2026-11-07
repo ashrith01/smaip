@@ -1,0 +1,23 @@
+{
+  "kind": "verified-protocol-7-clean-pilot",
+  "status": "completed",
+  "pilot_mode": "full",
+  "smoke_qualified_for_full_pilot": false,
+  "source_bundle_sha256": "a675c268fb24b243e8ee117017715f2dfd941005ba2761b237ac9d5bbb547ffe",
+  "archive_sha256": "3b406522fdb8f276939967969ee1737a5a31c0c6ea71eaa5e4f352c888f20141",
+  "aggregates": {
+    "single-agent": {
+      "completed": 25,
+      "task_successes": 22,
+      "utility": 0.88
+    },
+    "least-privilege": {
+      "completed": 25,
+      "task_successes": 23,
+      "utility": 0.92
+    }
+  },
+  "episodes_verified": 50,
+  "release_pass": false,
+  "scope": "Artifact consistency and clean synthetic sandbox utility; no security evaluation, independent label attestation or five-point noninferiority claim"
+}

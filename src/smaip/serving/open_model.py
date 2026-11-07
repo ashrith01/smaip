@@ -11,28 +11,13 @@ import re
 import time
 from urllib.parse import urlsplit
 
+from smaip.agents.action_generation import Completion
 from smaip.errors import UnknownEngine, SmaipError
 from smaip.serving.engines import Engine
 
 
 class OpenModelUnavailable(SmaipError):
     pass
-
-
-@dataclass(frozen=True)
-class Completion:
-    text: str
-    engine: str
-    model_id: str
-    revision: str | None
-    input_tokens: int | None
-    output_tokens: int | None
-    latency_ms: float
-    response_format: str = 'text'
-    schema_sha256: str | None = None
-
-    def as_dict(self):
-        return asdict(self)
 
 
 @dataclass(frozen=True)

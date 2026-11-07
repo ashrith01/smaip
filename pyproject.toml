@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "smaip"
 version = "0.7.0"
-description = "Secure Multi-Agent Inference Platform — Week 7 probe collection and training"
+description = "Evidence-bound AI agent and prompt injection evaluation testbed"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

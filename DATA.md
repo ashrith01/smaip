@@ -1,5 +1,62 @@
 # Data
 
+## Schema-3 candidate review queue — unreviewed
+
+`scripts/prepare_corpus_review.py` prepares 1,012 task-document candidates and
+339 separate NotInject prompt diagnostics under ignored
+`.local-data/corpus-review-01/`. No raw external payloads are vendored into Git.
+Pinned NVIDIA CC BY 4.0, LLMail MIT and NotInject MIT card declarations, exact
+source checksums, transformations and attribution are retained for review.
+All 400 consumed NVIDIA context components are excluded. Human label approvals
+are zero; split assignments and a third eligible task-source stream are missing.
+Diagnostics are not representative benign calibration. This is a candidate
+inventory, not a new trained model or independent evaluation corpus.
+
+See `docs/brd/IMPLEMENTATION_NEXT_STEPS_2026-10-31.md` and the payload-free
+`reports/runs/implementation-01/corpus-readiness.json`. Schema/review checks live
+in `src/smaip/probes/corpus_v3.py`; they do not assert semantic label truth or
+population independence. Restrictions on AgentDojo, InjecAgent and BIPIA below
+remain in force.
+
+## V2 external pilot — completed frozen-probe validation
+
+The completed frozen-probe validation uses NVIDIA's
+[Nemotron-RL-Agentic-Indirect-Prompt-Injection-v1](https://huggingface.co/datasets/nvidia/Nemotron-RL-Agentic-Indirect-Prompt-Injection-v1/tree/d738d4f361cc38bb4d7a42b9066776dade5332f5),
+at revision `d738d4f361cc38bb4d7a42b9066776dade5332f5`. The pinned card declares
+CC BY 4.0 and fully synthetic generation without seed data. The original source
+and derived corpus are stored under ignored `.local-data/`, with upstream card,
+attribution and explicit transformation records. They are not vendored into Git.
+This does not change the restrictions below for AgentDojo, InjecAgent or BIPIA.
+
+The selected corpus has 400 injected tool-text documents and 400 matched controls
+derived by removing the exact annotated injection. Ambiguous spans, short
+residuals, residual attack wrappers, declared near-duplicate contexts and known
+development overlap are screened before score-independent selection. Derived
+negative labels have not received human review. The nine-domain synthetic source
+is held out from probe fitting/calibration, but its shared templates and selection
+bias preclude a final independence claim. The returned GPU run scored all 800
+documents with unchanged probes/thresholds: linear caught 0/400 attacks and mean
+pooling caught 1/400 with one benign false alarm. This now-observed corpus is
+known regression material; no threshold tuning or independent final claim was
+performed. See `reports/V2_EXTERNAL_FROZEN_01_ANALYSIS.md` and
+`docs/brd/V2_EXTERNAL_VALIDATION.md` for the fixed measurement plan and limits.
+
+## V2 development corpus — October 31, 2026
+
+`data/v2/development-01.jsonl` adds 36 original synthetic tool-result documents
+for the first V2 pipeline run. Each train/calibration/test split has six benign
+and six injected documents. Document labels, synthetic clean/injected source
+groups, declared attack-family partitions and limitations are recorded in
+`data/v2/development-01.provenance.json`, bound to the corpus SHA-256. No external
+benchmark material was imported. Label review was performed by the assistant;
+human label review has not occurred. The material shares an authored style and
+does not constitute an independently sampled evaluation corpus. Six benign
+calibration/test cases cannot validate a population 1%-FPR claim.
+
+The training run uses the shared format-2 feature protocol, not the legacy Week 7
+label/split/extraction path. See `docs/brd/V2_DEVELOPMENT_TRAINING.md`. Earlier GPU
+smoke inputs and vendor development fixtures are excluded from this new corpus.
+
 Week 1 ships only the synthetic vendor fixtures under `src/smaip/fixture_data/vendors/`. Those pages were written for this repo. They are not excerpts from the benchmarks below.
 
 Week 2 does not add datasets. AgentDojo, InjecAgent, and BIPIA stay out of the tree. The license watch below still applies: re-check the upstream license the week you import.

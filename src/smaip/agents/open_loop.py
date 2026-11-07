@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from smaip.agents.action_schema import ACTION_SCHEMA, SummaryHandoff, validate_action
+from smaip.agents.action_generation import generate_action
 from smaip.eval.contract import EvalConfig
 from smaip.gateway.enforcement import Enforcement
 from smaip.gateway.gateway import Gateway, MUTATING, ROLE_TOOLS
@@ -113,14 +114,8 @@ def run_open_task(instruction, *, vendor, recipient, config: EvalConfig, engine,
                     {'role': 'user', 'content': root_instruction + '\nVendor id: ' + vendor}]
         messages += history
         model_started = time.perf_counter()
-        if hasattr(engine, 'complete_action_result') or hasattr(engine, 'complete_result'):
-            completion = engine.complete_action_result(messages, ACTION_SCHEMA) if hasattr(engine, 'complete_action_result') else engine.complete_result(messages)
-            text = completion.text
-            usage = completion.as_dict()
-            usage.pop('text', None)
-        else:
-            text = engine.complete(messages)
-            usage = {'engine': engine.name, 'input_tokens': None, 'output_tokens': None}
+        generated = generate_action(engine, messages, ACTION_SCHEMA)
+        text, usage = generated.text, generated.usage
         events.append({'type': 'model', 'role': role, 'call': calls, 'usage': usage,
                        'elapsed_ms': (time.perf_counter() - model_started) * 1000,
                        'response_redacted': redact_pii(text)})

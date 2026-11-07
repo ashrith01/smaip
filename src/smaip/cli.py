@@ -152,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
             _, report = load_manifest(Path(args.path))
         else:
             from smaip.eval.acceptance import assess
-            report = assess(json.loads(Path(args.path).read_text()))
+            report = assess(json.loads(Path(args.path).read_text()), evidence_root=Path(args.path).resolve().parent)
         output = Path(args.output)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(report, indent=2) + "\n")

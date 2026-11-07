@@ -1,0 +1,121 @@
+{
+  "kind": "corpus-v3-review-audit",
+  "status": "pending",
+  "schema_version": 3,
+  "records": 1351,
+  "counts": {
+    "fitting": {
+      "0": 0,
+      "1": 0
+    },
+    "selection": {
+      "0": 0,
+      "1": 0
+    },
+    "threshold-development": {
+      "0": 0,
+      "1": 0
+    },
+    "statistical-calibration": {
+      "0": 0,
+      "1": 0
+    },
+    "final": {
+      "0": 0,
+      "1": 0
+    },
+    "regression": {
+      "0": 0,
+      "1": 0
+    },
+    "diagnostic": {
+      "0": 339,
+      "1": 0
+    },
+    "unassigned": {
+      "0": 656,
+      "1": 356
+    }
+  },
+  "pilot_shortfalls": {
+    "fitting": {
+      "0": 128,
+      "1": 128
+    },
+    "selection": {
+      "0": 128,
+      "1": 128
+    },
+    "threshold-development": {
+      "0": 400,
+      "1": 100
+    }
+  },
+  "accepted_task_documents": 0,
+  "human_review_count": 0,
+  "missing_review_count": 1012,
+  "eligible_source_streams": [],
+  "declared_source_streams": {
+    "nvidia/Nemotron-RL-Agentic-Indirect-Prompt-Injection-v1": 681,
+    "microsoft/llmail-inject-challenge": 331,
+    "leolee99/NotInject": 339
+  },
+  "unknown_author_count": 1223,
+  "unknown_template_count": 1351,
+  "pending": [
+    "unreviewed or unresolved task documents",
+    "reviewed pilot split counts not ready",
+    "insufficient independent eligible source streams",
+    "candidate groups need reviewed split assignment"
+  ],
+  "population_independence_verified": false,
+  "corpus_sha256": "2c706867d265a5af9ffa53204e4f0572b75819b5b5c33b274a7e74ea20545ab5",
+  "reviews_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "split_policy": {
+    "schema_version": 3,
+    "experiment": "in-distribution",
+    "group_by_author": true,
+    "group_by_generation_batch": false,
+    "min_source_streams": 3,
+    "require_human_review": true,
+    "scope": "feasibility-only"
+  },
+  "note": "Mechanical identity/lineage checks do not establish independent sampling or semantic label truth.",
+  "queue_path": ".local-data/corpus-review-01/prepared/review-queue.jsonl",
+  "candidate_file_sha256": "842b73014b1fc071cf9a61f1daccdd144be899ebf427970b7c8ea3bc539aec9e",
+  "source_revisions": {
+    "nvidia/Nemotron-RL-Agentic-Indirect-Prompt-Injection-v1": "d738d4f361cc38bb4d7a42b9066776dade5332f5",
+    "microsoft/llmail-inject-challenge": "1063bdf01ec8762b812d5e06ee768a06faa5a6f7",
+    "leolee99/NotInject": "847ae76cf8fea5ed325429e569ae8cfef022d2e0"
+  },
+  "source_files_sha256": {
+    ".local-data/corpus-review-01/sources/llmail/README.md": "d85767e349ab1abbaf43db9390c4e906e34954e5df3a1335c8f1516efa64e812",
+    ".local-data/corpus-review-01/sources/llmail/data/emails_for_fp_tests.json": "4ddd950b5dbaa8548f5597c886d8e09a051ba07f80a9291fdcca9c2397d22abe",
+    ".local-data/corpus-review-01/sources/llmail/data/labelled_unique_submissions_phase2.json": "f89af984e345430c3b357903890e30867bf4676f4ef10c138cc7bad218e890b8",
+    ".local-data/corpus-review-01/sources/llmail/data/raw_submissions_phase2.prefix.jsonl": "e49f685daf619da0f3954550699b000396fd65080ed15d7572fc5fab553fc729",
+    ".local-data/corpus-review-01/sources/llmail/data/scenarios.json": "3d7c55fd04826dd29fa11b9f9912ae270fffb16a6c52a7eb2bff00457d378e4f",
+    ".local-data/corpus-review-01/sources/llmail/data/system_prompt.json": "f5d0eb0b02f548476e32f39f190de7ebf1614c0816049c4d7b0047869c28131b",
+    ".local-data/corpus-review-01/sources/llmail/hub-metadata.json": "d896823bd573372c5f332c2f212cc5c713e202c3bb60f464bb844b46209c6c5f",
+    ".local-data/corpus-review-01/sources/llmail/prefix-policy.json": "759a5e012b60ebb096ea7c21e3d37ad0d7c6f01efb8096e4e9414a7a5b0e8efb",
+    ".local-data/corpus-review-01/sources/notinject/README.md": "ffaf685021522a526f94af2047e5099ec6b7439a462c67e0ecaca0d631a0d43f",
+    ".local-data/corpus-review-01/sources/notinject/data/NotInject_one-00000-of-00001.parquet": "5b1d3a8ec341205305efd8c6d2cabeb5ba0f594dd8726b08ee7fde1a46ddc6ec",
+    ".local-data/corpus-review-01/sources/notinject/data/NotInject_three-00000-of-00001.parquet": "d5c685b123570c092a0f374ba6bdf324b2026d905a2751a243eb2bb360d411a8",
+    ".local-data/corpus-review-01/sources/notinject/data/NotInject_two-00000-of-00001.parquet": "a5a8c1b3b851b0b5acc3b6caf8bfee26d7da631b2967dd31ca90358df8883feb",
+    ".local-data/corpus-review-01/sources/notinject/hub-metadata.json": "e1991a8b2696c1e8c5654c33f8c2e0b162e362ec715335c858b1da2628816023",
+    ".local-data/external-frozen-01/prepared/corpus.jsonl": "2ac369245e985c641aeb210677e18209009def75413b9a6f58b8583691bd1ec8",
+    ".local-data/external-frozen-01/prepared/policy.json": "1b5ee18ab64bbdeda6dd6e74a1ab47841716045eb0a540daec723ccba6e35e72",
+    ".local-data/external-frozen-01/source/README.md": "0386806252047746e06cba58bba3f91905aa02ccdd4def963022440e6d5de851",
+    ".local-data/external-frozen-01/source/train.jsonl": "3329da17564a7eb287e2730fc7d6956e1f4fe51e8950ac4f110b3c37e78cf3b9",
+    "data/v2/development-01.jsonl": "ec59c6d44322239a2221e357b9c4d32d0ceae2366efb28b5ccf2456048d1c004"
+  },
+  "consumed_context_groups_excluded": 400,
+  "remaining_nvidia_context_groups": 835,
+  "limitations": [
+    "Two eligible tool/email source streams; three required before pilot readiness.",
+    "All task documents need label, task, license and lineage review and group-wise split assignment.",
+    "LLMail selection uses a bounded contiguous prefix and five available teams; not a representative population.",
+    "NVIDIA controls are synthetic span deletions. NotInject is a separate prompt diagnostic.",
+    "Template lineage and generation batches are not provided; do not infer independence from unknown fields."
+  ],
+  "training_performed": false
+}

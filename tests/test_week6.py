@@ -170,7 +170,7 @@ def test_week6_cli_writes_the_before_after_table_and_traces(tmp_path: Path):
 
 def test_week6_docs_name_the_taxonomy_the_gate_and_the_stub_probes():
     root = Path(__file__).resolve().parents[1]
-    readme = (root / "README.md").read_text(encoding="utf-8")
+    readme = (root / "docs" / "DEVELOPMENT_HISTORY.md").read_text(encoding="utf-8")
     for snippet in (
         "make week6",
         "python3 -m smaip.cli week6",
