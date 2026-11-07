@@ -8,14 +8,21 @@ place when these files are absent.
 """
 
 import json
+import os
+from collections import OrderedDict
 from pathlib import Path
 
-from smaip.probes.activations import embed_text
+from smaip.probes.activations import _max_length, embed_text, preload_backend, resolve_device
 from smaip.probes.logistic import predict_proba, standardize
 
 
 class TrainedProbe:
+    # The fit used individual document bodies, not generated digest arguments.
+    matches_training_documents = True
+
     def __init__(self, payload: dict) -> None:
+        if payload.get("format", 1) != 1:
+            raise ValueError("V2 weights require ProtocolProbe and their saved feature protocol")
         self.kind = str(payload["kind"])
         self.model_id = str(payload["model_id"])
         self.backend = str(payload["backend"])
@@ -31,7 +38,26 @@ class TrainedProbe:
         self.metrics = payload.get("metrics") or {}
         self.layer_sweep = list(payload.get("layer_sweep") or [])
         self.tpr_target = float(payload.get("tpr_target") or 0.95)
-        self._cache: dict[str, float] = {}
+        self._cache: OrderedDict[tuple, float] = OrderedDict()
+
+    def score_device(self) -> str:
+        return resolve_device(os.environ.get("SMAIP_PROBE_DEVICE") or "auto", self.backend)
+
+    def embedding_dtype(self) -> str:
+        # Preserve collection precision when moving a saved probe across devices.
+        return "float16" if self.device == "cuda" else "float32"
+
+    def preload(self) -> None:
+        preload_backend(self.model_id, self.backend, self.score_device(), self.embedding_dtype())
+
+    def clear_score_cache(self) -> None:
+        self._cache.clear()
+
+    def cached_score(self, text: str) -> float | None:
+        return self._cache.get(self._cache_key(text))
+
+    def _cache_key(self, text: str) -> tuple:
+        return (self.score_device(), self.embedding_dtype(), _max_length(), text)
 
     @classmethod
     def load(cls, path: Path) -> "TrainedProbe":
@@ -39,8 +65,10 @@ class TrainedProbe:
         return cls(payload)
 
     def score(self, text: str) -> float:
-        cached = self._cache.get(text)
+        key = self._cache_key(text)
+        cached = self._cache.get(key)
         if cached is not None:
+            self._cache.move_to_end(key)
             return cached
         vector = embed_text(
             text,
@@ -48,11 +76,14 @@ class TrainedProbe:
             layer=self.layer,
             pooling=self.pooling,
             backend=self.backend,
-            device=self.device,
+            device=key[0],
+            dtype_name=key[1],
         )
         scaled, _mean, _std = standardize([vector], self.mean, self.std)
         probability = predict_proba(scaled[0], self.weights, self.bias)
-        self._cache[text] = probability
+        self._cache[key] = probability
+        if len(self._cache) > 256:
+            self._cache.popitem(last=False)
         return probability
 
     def flagged(self, text: str) -> bool:

@@ -16,7 +16,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from smaip.serving.access import request_id_from_header
 
-_GUARDED_PATHS = frozenset({"/v1/chat/completions", "/v1/agent/tasks"})
+_GUARDED_PATHS = frozenset({"/v1/chat/completions", "/v1/agent/tasks", "/v2/agent/tasks", "/v3/agent/tasks"})
 _BODY_METHODS = {"POST", "PUT", "PATCH"}
 
 
@@ -99,7 +99,7 @@ class InferenceGuard:
         state = self.fastapi_app.state
         path = scope.get("path", "")
         method = scope.get("method", "GET").upper()
-        guarded = method == "POST" and path.rstrip("/") in _GUARDED_PATHS
+        guarded = method == "POST" and (path.rstrip("/") in _GUARDED_PATHS or path.startswith('/v3/agent/reviews/'))
 
         if method in _BODY_METHODS:
             content_length = request.headers.get("content-length", "").strip()

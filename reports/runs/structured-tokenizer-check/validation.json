@@ -1,0 +1,10 @@
+{
+  "kind": "tokenizer-only-schema-check",
+  "tokenizer_sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+  "tokenizer_vocab_size": 151665,
+  "schema_sha256": "096275051e7597f661f480b7490136f52dc8b81900152a39c130358f2a4109f5",
+  "valid_sequences_accepted": 8,
+  "malformed_sequences_rejected": 4,
+  "model_weights_loaded": false,
+  "model_quality_measured": false
+}

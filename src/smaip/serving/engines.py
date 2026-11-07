@@ -91,6 +91,10 @@ def engine_for_model(model: str) -> Engine:
         return HfStubEngine()
     if key in {"vllm", "vllm-stub"}:
         return VllmStubEngine()
+    if key in {"hf-local", "vllm-local"}:
+        from smaip.serving.open_model import configured_engine
+
+        return configured_engine(key)
     if key in _HF_CPU_KEYS:
         if not hf_cpu_requested():
             raise HfCpuDisabled(

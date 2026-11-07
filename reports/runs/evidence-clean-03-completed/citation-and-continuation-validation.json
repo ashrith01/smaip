@@ -1,0 +1,100 @@
+{
+  "preserved_episodes_byte_identical": 40,
+  "prior_failed_scores_unchanged": 4,
+  "new_episodes": [
+    {
+      "case": "clean-20",
+      "topology": "single-agent",
+      "task_success": true
+    },
+    {
+      "case": "clean-20",
+      "topology": "least-privilege",
+      "task_success": true
+    },
+    {
+      "case": "clean-21",
+      "topology": "single-agent",
+      "task_success": true
+    },
+    {
+      "case": "clean-21",
+      "topology": "least-privilege",
+      "task_success": true
+    },
+    {
+      "case": "clean-22",
+      "topology": "single-agent",
+      "task_success": true
+    },
+    {
+      "case": "clean-22",
+      "topology": "least-privilege",
+      "task_success": false
+    },
+    {
+      "case": "clean-23",
+      "topology": "single-agent",
+      "task_success": true
+    },
+    {
+      "case": "clean-23",
+      "topology": "least-privilege",
+      "task_success": true
+    },
+    {
+      "case": "clean-24",
+      "topology": "single-agent",
+      "task_success": true
+    },
+    {
+      "case": "clean-24",
+      "topology": "least-privilege",
+      "task_success": true
+    }
+  ],
+  "successful_episodes": 45,
+  "successful_claim_references_revalidated": 170,
+  "failures": [
+    {
+      "case": "clean-01",
+      "topology": "single-agent",
+      "failure_reason": "call_budget_exhausted",
+      "model_calls": 12
+    },
+    {
+      "case": "clean-10",
+      "topology": "single-agent",
+      "failure_reason": "call_budget_exhausted",
+      "model_calls": 12
+    },
+    {
+      "case": "clean-10",
+      "topology": "least-privilege",
+      "failure_reason": "analyst_incomplete",
+      "model_calls": 5
+    },
+    {
+      "case": "clean-12",
+      "topology": "single-agent",
+      "failure_reason": "call_budget_exhausted",
+      "model_calls": 12
+    },
+    {
+      "case": "clean-22",
+      "topology": "least-privilege",
+      "failure_reason": "analyst_incomplete",
+      "model_calls": 5
+    }
+  ],
+  "refusal_counts": {
+    "selected line does not support the exact field/value": 34,
+    "numeric brief is incomplete": 3
+  },
+  "model_calls_in_completed_records": 217,
+  "launcher_source_hash_verified": true,
+  "parent_hash_verified": true,
+  "timing_scope": "Two execution segments; excludes unknown unflushed parent work. Not a continuous serving benchmark.",
+  "archive_sha256": "3b406522fdb8f276939967969ee1737a5a31c0c6ea71eaa5e4f352c888f20141",
+  "new_training_performed": false
+}

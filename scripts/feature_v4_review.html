@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMAIP blind document review</title>
+  <style>
+    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f3ee; color: #17212b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { background: #123b48; color: white; padding: 22px max(24px, calc((100vw - 1000px)/2)); }
+    header h1 { margin: 0 0 5px; font-size: 1.45rem; }
+    header p { margin: 0; color: #dce9e8; font-size: .92rem; }
+    main { max-width: 1000px; margin: 24px auto 70px; padding: 0 20px; }
+    .panel { background: white; border: 1px solid #d8dfdb; border-radius: 12px; box-shadow: 0 3px 12px #17212b0b; padding: 22px; margin-bottom: 18px; }
+    .intro p { margin: 6px 0; line-height: 1.48; }
+    .muted { color: #52616a; }
+    .topline, .nav, .statusline { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+    .topline h2 { margin: 0; font-size: 1.2rem; }
+    .progress { height: 10px; background: #e7ece8; border-radius: 8px; overflow: hidden; margin: 15px 0 4px; }
+    .progress > div { height: 100%; width: 0; background: #2b8274; transition: width .2s; }
+    .field-label { display: block; font-size: .78rem; text-transform: uppercase; letter-spacing: .09em; color: #4a6268; font-weight: 700; margin: 22px 0 8px; }
+    .source { background: #f7faf8; border: 1px solid #dce7e1; border-left: 4px solid #2b8274; border-radius: 6px; padding: 16px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; max-height: 330px; overflow-y: auto; font: .9rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .untrusted { border-left-color: #b47a35; background: #fffaf4; border-color: #efdfcc; }
+    fieldset { border: 0; padding: 0; margin: 22px 0 0; }
+    legend { font-weight: 700; margin-bottom: 11px; }
+    .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .choice { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #bbc9c4; border-radius: 9px; padding: 13px; cursor: pointer; min-height: 84px; }
+    .choice:has(input:checked) { border: 2px solid #1e756a; background: #eaf5f1; padding: 12px; }
+    .choice input { margin-top: 3px; accent-color: #1e756a; }
+    .choice strong { display: block; margin-bottom: 3px; }
+    .choice small { color: #50616a; line-height: 1.35; }
+    textarea, input[type=text] { font: inherit; border: 1px solid #aab9b5; border-radius: 7px; padding: 10px; width: 100%; }
+    textarea { min-height: 76px; resize: vertical; }
+    button { font: inherit; border: 0; border-radius: 8px; padding: 11px 17px; cursor: pointer; font-weight: 650; background: #1e756a; color: white; }
+    button.secondary { background: #e9efeb; color: #183b42; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #d69139; outline-offset: 2px; }
+    .nav { margin-top: 22px; }
+    .jump { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 15px; }
+    .jump button { min-width: 34px; padding: 6px 4px; font-size: .77rem; background: #e8eeea; color: #27434b; }
+    .jump button.done { background: #cbebdd; }
+    .jump button.active { outline: 2px solid #176b61; }
+    #message { padding: 12px 14px; border-radius: 7px; display: none; margin-top: 14px; line-height: 1.4; }
+    #message.error { display: block; background: #fff0ec; color: #8b3424; }
+    #message.success { display: block; background: #e3f5e9; color: #165c3c; }
+    @media (max-width: 650px) { .choices { grid-template-columns: 1fr; } .choice { min-height: auto; } .panel { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <header><h1>SMAIP document review</h1><p>32 cases · Answer-free development quality check · Saved only on this computer</p></header>
+  <main>
+    <section class="panel intro">
+      <p><strong>Your task:</strong> Decide whether the untrusted email or tool result tries to redirect the AI beyond the real user's task.</p>
+      <p><strong>Attack</strong> means the document tries to instruct the AI to change its behavior or take an unauthorized action. <strong>Benign</strong> means it is ordinary content for the user's task, even if it describes a request to another person. Select <strong>Unclear</strong> if you cannot tell.</p>
+      <p class="muted">Read the trusted task first, then the document. Choose one option for every case. A short note helps for unclear cases. Your choices save in this browser as you go; Submit saves a copy for Codex. No GPU work is involved.</p>
+    </section>
+    <section class="panel" aria-live="polite">
+      <div class="topline"><h2 id="case-title">Loading cases…</h2><span id="count" class="muted"></span></div>
+      <div class="progress" aria-hidden="true"><div id="progress-fill"></div></div>
+      <div class="statusline"><small id="progress-text" class="muted"></small><small id="role" class="muted"></small></div>
+      <span class="field-label">Trusted task — what the real user asked</span>
+      <div id="trusted-task" class="source"></div>
+      <span class="field-label">Untrusted document — decide how the AI should treat it</span>
+      <div id="untrusted-text" class="source untrusted"></div>
+      <fieldset>
+        <legend>Your classification</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="judgment" value="attack"><span><strong>Attack</strong><small>Tries to direct the AI outside the trusted task</small></span></label>
+          <label class="choice"><input type="radio" name="judgment" value="benign"><span><strong>Benign</strong><small>Ordinary content for the trusted task</small></span></label>
+          <label class="choice"><input type="radio" name="judgment" value="unclear"><span><strong>Unclear</strong><small>Cannot confidently decide from the context</small></span></label>
+        </div>
+      </fieldset>
+      <label class="field-label" for="reason">Optional note (required if unclear)</label>
+      <textarea id="reason" maxlength="2000" placeholder="Why did you choose this? What is unclear?"></textarea>
+      <div class="nav"><button class="secondary" id="previous" type="button">Previous</button><button id="next" type="button">Next case</button></div>
+      <div id="jump" class="jump" aria-label="Jump to a case"></div>
+    </section>
+    <section class="panel">
+      <label class="field-label" for="reviewer-id">Your name or initials (optional)</label>
+      <input id="reviewer-id" type="text" maxlength="100" placeholder="For the review record">
+      <div class="statusline" style="margin-top:18px"><span id="submit-status" class="muted">Complete all 32 choices to submit.</span><button id="submit" type="button" disabled>Submit 32 reviews</button></div>
+      <div id="message" role="status"></div>
+    </section>
+  </main>
+  <script>
+  (() => {
+    'use strict';
+    let cases = [], index = 0, answers = {}, storageKey = '', submitted = false;
+    const $ = id => document.getElementById(id);
+    const choices = [...document.querySelectorAll('input[name="judgment"]')];
+    function save() { try { localStorage.setItem(storageKey, JSON.stringify({answers, reviewerId: $('reviewer-id').value})); } catch (_) {} }
+    function message(text, kind) { $('message').textContent = text; $('message').className = kind; }
+    function valid(entry) { return !!entry && ['attack','benign','unclear'].includes(entry.judgment) && (entry.judgment !== 'unclear' || !!entry.reason.trim()); }
+    function render() {
+      if (!cases.length) return;
+      const item = cases[index], entry = answers[item.review_key] || {judgment:'', reason:''};
+      $('case-title').textContent = `Case ${index + 1} of ${cases.length}`;
+      $('count').textContent = item.review_key;
+      $('role').textContent = `Document type: ${item.native_role}`;
+      $('trusted-task').textContent = item.trusted_task;
+      $('untrusted-text').textContent = item.untrusted_text;
+      for (const choice of choices) choice.checked = choice.value === entry.judgment;
+      $('reason').value = entry.reason || '';
+      $('previous').disabled = index === 0;
+      $('next').disabled = index === cases.length - 1;
+      const completed = cases.filter(row => valid(answers[row.review_key])).length;
+      $('progress-fill').style.width = `${completed / cases.length * 100}%`;
+      $('progress-text').textContent = `${completed} of ${cases.length} completed`;
+      $('submit-status').textContent = completed === cases.length ? 'All cases are ready to submit.' : `${cases.length - completed} cases still need a choice${cases.some(row => answers[row.review_key]?.judgment === 'unclear' && !answers[row.review_key]?.reason?.trim()) ? ' or an unclear-case note' : ''}.`;
+      $('submit').disabled = completed !== cases.length || submitted;
+      $('jump').replaceChildren(...cases.map((row, i) => {
+        const button = document.createElement('button');
+        button.type = 'button'; button.textContent = String(i + 1); button.title = `Case ${i + 1}`;
+        button.className = `${valid(answers[row.review_key]) ? 'done ' : ''}${i === index ? 'active' : ''}`;
+        button.addEventListener('click', () => { index = i; render(); window.scrollTo({top: 0, behavior: 'smooth'}); });
+        return button;
+      }));
+    }
+    for (const choice of choices) choice.addEventListener('change', () => {
+      const key = cases[index].review_key;
+      answers[key] = {judgment: choice.value, reason: $('reason').value.trim()};
+      submitted = false; $('message').className = '';
+      save(); render();
+    });
+    $('reason').addEventListener('input', () => {
+      const key = cases[index].review_key;
+      const selectionStart = $('reason').selectionStart, selectionEnd = $('reason').selectionEnd;
+      answers[key] = {judgment: answers[key]?.judgment || '', reason: $('reason').value};
+      submitted = false; $('message').className = '';
+      save(); render(); $('reason').focus(); $('reason').setSelectionRange(selectionStart, selectionEnd);
+    });
+    $('reviewer-id').addEventListener('input', save);
+    $('previous').addEventListener('click', () => { if (index > 0) { index--; render(); } });
+    $('next').addEventListener('click', () => { if (index < cases.length - 1) { index++; render(); } });
+    $('submit').addEventListener('click', async () => {
+      if (!cases.every(row => valid(answers[row.review_key]))) { message('Please finish every case first.', 'error'); return; }
+      $('submit').disabled = true;
+      try {
+        const response = await fetch('/submit', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({packet_sha256: storageKey.split(':').pop(), reviewer_id:$('reviewer-id').value.trim(), answers:cases.map(row => ({review_key:row.review_key, judgment:answers[row.review_key].judgment, reason:answers[row.review_key].reason.trim()}))})});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Submission failed');
+        submitted = true;
+        message(`Saved all ${result.count} reviews on this computer as ${result.filename}. Tell Codex “review submitted” so I can continue.`, 'success');
+      } catch (error) { message(`Could not save the review: ${error.message}. Your choices remain in this browser.`, 'error'); }
+      render();
+    });
+    fetch('/cases', {cache:'no-store'}).then(response => { if (!response.ok) throw new Error('Could not load cases'); return response.json(); }).then(data => {
+      cases = data.cases;
+      storageKey = `smaip-feature-v4-review:${data.packet_sha256}`;
+      try { const draft = JSON.parse(localStorage.getItem(storageKey) || '{}'); answers = draft.answers || {}; $('reviewer-id').value = draft.reviewerId || ''; } catch (_) {}
+      render();
+    }).catch(error => { $('case-title').textContent = 'Could not load cases'; message(error.message, 'error'); });
+  })();
+  </script>
+</body>
+</html>

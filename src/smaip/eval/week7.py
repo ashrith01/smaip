@@ -9,6 +9,9 @@ rewrite ``reports/RESULTS.md``.
 
 import json
 import os
+import hashlib
+import importlib.metadata
+import platform
 from pathlib import Path
 
 from smaip.eval.week5 import load_tasks as load_week5
@@ -19,6 +22,7 @@ from smaip.eval.week6 import week6_root
 from smaip.eval.week6 import _run_ablation as run_week6_ablation
 from smaip.gateway.enforcement import presets
 from smaip.probes.activations import (
+    clear_pool_cache,
     collect,
     model_layer_count,
     parse_layers,
@@ -182,7 +186,7 @@ def render_results(report: dict) -> str:
         "",
         "Utility is the user-named digest email. ASR is the injection-following caller after the graph. FPR is a benign episode that was quarantined or whose digest email did not land. `no-defense` stays the baseline. `gateway-only` still refuses the caller because the caller cannot mint an approval. `LP-only` and `probe-only` are the trained probes from this run, not the phrase stubs.",
         "",
-        "Probe AUROC, F1, and FPR at the target true-positive rate are computed on the held-out records. The ablation tables are the agent episodes, which are a different cut, so a low test FPR does not promise a low ablation FPR.",
+        "Record test metrics use a validation-frozen threshold; the achieved test recall may differ from 0.95. Episode ablations reuse corpus pages, including training pages: they are integration checks, not unseen-attack generalization results. Trained probes score individual source documents, not generated digest arguments. Text caches are cleared between ablations; repeats within a row may hit cache.",
         "",
         "Week 1 through Week 6 keep those stubs so their published gates stay put. The live gateway loads `artifacts/probes/linear.json` and `artifacts/probes/activation.json` when the files are present and `SMAIP_PROBES` is not `stub`.",
         "",
@@ -236,15 +240,22 @@ def week7_main(
 
 
 def _measure(runner, tasks, library, probes) -> list[dict]:
+    for probe in probes:
+        probe.preload()
     traces: list[list[dict]] = []
     rows = []
     for enforcement in presets().values():
+        for probe in probes:
+            probe.clear_score_cache()
+        clear_pool_cache()
         result = runner(enforcement, tasks, library, traces, probes=probes)
         rows.append(result.as_dict())
     return rows
 
 
 def _select_tasks(tasks: list[dict], subset: str) -> list[dict]:
+    if subset not in {"full", "tiny"}:
+        raise ValueError(f"unknown episode subset {subset!r}")
     if subset != "tiny":
         return tasks
     benign = sorted((task for task in tasks if task["kind"] == "benign"), key=lambda item: item["id"])
@@ -348,3 +359,95 @@ def _write_activation_summary(path: Path, rows: list[dict], model_id: str, backe
 def _dump(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def rescore_week7(
+    *,
+    artifact_dir: Path | None = None,
+    results_path: Path | None = None,
+    output_path: Path | None = None,
+    subset: str = "full",
+) -> dict:
+    """Run integration episodes without fitting or overwriting saved probes."""
+    probes_dir = artifact_dir or Path("artifacts/probes")
+    paths = [linear_artifact(probes_dir), activation_artifact(probes_dir)]
+    if any(not path.is_file() for path in paths):
+        raise FileNotFoundError("week7-rescore requires linear.json and activation.json; it does not train them")
+    payloads = [json.loads(path.read_text()) for path in paths]
+    linear, activation = [TrainedProbe(payload) for payload in payloads]
+    if (linear.model_id, linear.backend) != (activation.model_id, activation.backend):
+        raise ValueError("the two probe artifacts must use the same model and backend")
+    report = {
+        "rescored": True,
+        "model_id": linear.model_id,
+        "backend": linear.backend,
+        "device": linear.score_device(),
+        "subset": subset,
+        "linear": _public_probe(payloads[0]),
+        "activation": _public_probe(payloads[1]),
+        "probe_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths},
+        "max_length": os.environ.get("SMAIP_PROBE_MAX_LENGTH", "512"),
+        "note": "Integration episodes reuse the probe corpus. No thresholds or weights were changed. These are not unseen-attack generalization results.",
+        "timing": "Model load excluded; text caches cleared per ablation. Repeated pages within a row may hit cache. Trace logging does not compute new trained scores.",
+        "runtime": {"python": platform.python_version()},
+        "source_sha256": {
+            str(path.relative_to(Path(__file__).parents[1])): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in Path(__file__).parents[1].rglob("*.py")
+        },
+    }
+    for package in ("torch", "transformers", "langgraph", "smaip"):
+        try:
+            report["runtime"][package] = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            report["runtime"][package] = None
+    for name, loader, root, runner in (
+        ("week5", load_week5, week5_root, run_week5_ablation),
+        ("week6", load_week6, week6_root, run_week6_ablation),
+    ):
+        report[name] = _measure(runner, _select_tasks(loader(), subset), VendorLibrary(root()), (linear, activation))
+    # Outside ablation timing, save the exact source scores for diagnosis.
+    # No labels or scores here feed fitting, layer choice, or calibration.
+    records = prepare_records(subset)
+    report["document_scores"] = [
+        {
+            "id": record.id, "label": record.label, "split": record.split,
+            "text_sha256": hashlib.sha256(record.text.encode()).hexdigest(),
+            "linear": linear.score(record.text), "activation": activation.score(record.text),
+        }
+        for record in records
+    ]
+    lines = [
+        "# Week 7 episode rescore", "",
+        f"Model `{report['model_id']}`; backend `{report['backend']}`; device `{report['device']}`; subset `{subset}`.", "",
+        report["note"], "", report["timing"], "",
+        "The original training report and GPU archive are preserved separately. This command does not retrain either probe.", "",
+    ]
+    for name in ("week5", "week6"):
+        lines.extend([f"## {name} episodes", "", _ablation_table(report[name]), ""])
+    _dump(output_path or Path("reports/week7_rescore.json"), report)
+    result = results_path or Path("reports/RESULTS_week7_rescore.md")
+    result.parent.mkdir(parents=True, exist_ok=True)
+    result.write_text("\n".join(lines))
+    return report
+
+
+def rescore_main(*, artifact_dir=None, results="reports/RESULTS_week7_rescore.md", output="reports/week7_rescore.json", subset="full", device=None) -> int:
+    previous = os.environ.get("SMAIP_PROBE_DEVICE")
+    try:
+        if device:
+            os.environ["SMAIP_PROBE_DEVICE"] = device
+        report = rescore_week7(
+            artifact_dir=Path(artifact_dir) if artifact_dir else None,
+            results_path=Path(results), output_path=Path(output), subset=subset,
+        )
+    finally:
+        if previous is None:
+            os.environ.pop("SMAIP_PROBE_DEVICE", None)
+        else:
+            os.environ["SMAIP_PROBE_DEVICE"] = previous
+    print(f"week7-rescore backend={report['backend']} model={report['model_id']} device={report['device']}")
+    for name in ("week5", "week6"):
+        for row in report[name]:
+            print(f"{name} {row['ablation']:<14} utility={row['utility']:.2f} asr={row['asr']:.2f} fpr={row['fpr']:.2f}")
+    print(f"wrote {results} and {output}")
+    return 0

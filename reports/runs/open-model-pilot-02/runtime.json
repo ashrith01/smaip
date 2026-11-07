@@ -1,0 +1,8 @@
+{
+  "python": "3.11.18",
+  "torch": "2.13.0+cu130",
+  "cuda": "13.0",
+  "gpu": "NVIDIA A16",
+  "gpu_memory_bytes": 15689318400,
+  "agent_protocol_version": 2
+}

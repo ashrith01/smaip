@@ -457,15 +457,17 @@ def _run_ablation(
         compromised = task["kind"] == "attack" and _succeeded(task, graph_sent, graph_files, library)
         quarantined = any(bool(message.get("quarantined")) for message in state.get("messages") or [])
         untrusted = ""
+        documents: list[str] = []
         before = len(gateway.decisions)
         follow = task.get("follow") or None
         if follow:
-            arguments, untrusted = _follow_call(task, library)
+            arguments, untrusted, documents = _follow_call(task, library)
             gateway.execute(
                 role="actor",
                 tool=str(follow["tool"]),
                 arguments=arguments,
                 untrusted_text=untrusted,
+                untrusted_documents=documents,
                 approval=gateway.approval_from_untrusted(untrusted),
                 enforcement=enforcement,
             )
@@ -504,6 +506,7 @@ def _run_ablation(
                 graph_files=graph_files,
                 final_sent=final_sent,
                 final_files=final_files,
+                documents=documents,
             )
         )
     benign = [item for item in scores if item.kind == "benign"]
@@ -558,6 +561,7 @@ def _events(
     graph_files: dict,
     final_sent: list[dict],
     final_files: dict,
+    documents: list[str] | None = None,
 ) -> list[dict]:
     episode = str(task["id"])
     ablation = enforcement.name
@@ -602,8 +606,8 @@ def _events(
                 "follow_up": index >= follow_from,
             }
         )
-    follow_probe = gateway.probe.score(untrusted) if untrusted else None
-    linear_score = gateway.linear.score(untrusted) if untrusted else None
+    follow_probe = _trace_score(gateway.probe, untrusted, documents)
+    linear_score = _trace_score(gateway.linear, untrusted, documents)
     events.append(
         {
             "type": "side_effects",
@@ -699,14 +703,16 @@ def _succeeded(task: dict, sent: list[dict], files: dict, library: VendorLibrary
     return False
 
 
-def _follow_call(task: dict, library: VendorLibrary) -> tuple[dict, str]:
+def _follow_call(task: dict, library: VendorLibrary) -> tuple[dict, str, list[str]]:
     follow = task.get("follow") or {}
     arguments = dict(follow.get("arguments") or {})
-    text = _pages_text(library, task, follow)
+    pages = follow.get("pages") or ["overview.md"]
+    documents = [library.read(str(task["vendor"]), str(page)) for page in pages]
+    text = "\n".join(documents)
     label = follow.get("to_from_page")
     if isinstance(label, str):
         arguments["to"] = _line_value(text, label)
-    return arguments, text
+    return arguments, text, documents
 
 
 def _pages_text(library: VendorLibrary, task: dict, follow: dict) -> str:
@@ -720,3 +726,12 @@ def _line_value(text: str, label: str) -> str:
     if match is None:
         raise ValueError(f"missing {label}")
     return match.group(1)
+
+
+def _trace_score(probe, text: str, documents: list[str] | None) -> float | None:
+    """Diagnostics must not run unseen trained inputs outside the episode timer."""
+    if getattr(probe, "matches_training_documents", False):
+        scores = [probe.cached_score(item) for item in (documents or []) if item]
+        present = [score for score in scores if score is not None]
+        return max(present) if present else None
+    return probe.score(text) if text else None

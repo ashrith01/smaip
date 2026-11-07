@@ -180,7 +180,7 @@ def test_week4_cli_writes_the_report(tmp_path: Path):
 
 def test_week4_docs_name_the_gate_and_the_smoke():
     root = Path(__file__).resolve().parents[1]
-    readme = (root / "README.md").read_text(encoding="utf-8")
+    readme = (root / "docs" / "DEVELOPMENT_HISTORY.md").read_text(encoding="utf-8")
     for snippet in (
         "make week4",
         "python3 -m smaip.cli week4",

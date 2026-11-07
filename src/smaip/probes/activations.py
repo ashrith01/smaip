@@ -17,6 +17,7 @@ token. One forward returns both.
 
 import hashlib
 import os
+from functools import lru_cache
 from typing import Any
 
 from smaip.errors import ProbeBackendUnavailable
@@ -26,7 +27,7 @@ DEFAULT_MODEL = "Qwen/Qwen2.5-3B-Instruct"
 CPU_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 MOCK_DIM = 32
 MOCK_LAYERS = (0, 1, 2, 3)
-_HF: dict[tuple[str, str], tuple[Any, Any]] = {}
+_HF: dict[tuple[str, str, str], tuple[Any, Any]] = {}
 
 
 def resolve_model(explicit: str | None = None) -> str:
@@ -144,26 +145,74 @@ def embed_text(
     pooling: str,
     backend: str,
     device: str,
+    dtype_name: str | None = None,
 ) -> list[float]:
     if backend == "mock":
         return mock_activation(text, layer, pooling)
     if backend != "hf":
         raise ProbeBackendUnavailable(f"unknown probe backend {backend!r}")
+    if pooling not in {"last", "mean"}:
+        raise ValueError(f"unknown pooling {pooling!r}")
+    pools = _compute_pools(text, model_id, device, dtype_name or _dtype_name_for(device), _max_length())
+    try:
+        return list(pools[pooling][layer])
+    except KeyError as exc:
+        raise ProbeBackendUnavailable(f"probe layer {layer} is outside this model") from exc
+
+
+@lru_cache(maxsize=64)
+def _compute_pools(text: str, model_id: str, device: str, dtype_name: str, max_length: int) -> dict:
+    """Share one forward between both probes; bound retained per-text vectors."""
     _require_hf()
     import torch
 
-    model, tokenizer = _load_hf(model_id, device)
+    model, tokenizer = _load_hf(model_id, device, dtype_name)
     rendered = _render(tokenizer, text)
     encoded = tokenizer(
         rendered,
         return_tensors="pt",
         truncation=True,
-        max_length=_max_length(),
+        max_length=max_length,
     )
     encoded = {key: value.to(device) for key, value in encoded.items()}
     with torch.no_grad():
         output = model(**encoded, output_hidden_states=True, use_cache=False)
-    return _pool_hidden(output.hidden_states, encoded["attention_mask"], layer, pooling)
+    return {
+        pooling: {
+            layer: _pool_hidden(output.hidden_states, encoded["attention_mask"], layer, pooling)
+            for layer in range(len(output.hidden_states) - 1)
+        }
+        for pooling in ("last", "mean")
+    }
+
+
+def clear_pool_cache() -> None:
+    _compute_pools.cache_clear()
+
+
+def preload_backend(model_id: str, backend: str, device: str, dtype_name: str) -> None:
+    if backend == "hf":
+        _load_hf(model_id, device, dtype_name)
+    elif backend != "mock":
+        raise ProbeBackendUnavailable(f"unknown probe backend {backend!r}")
+
+
+def release_cached_model() -> None:
+    _HF.clear()
+    clear_pool_cache()
+    import gc
+
+    gc.collect()
+    try:
+        import torch
+    except ImportError:
+        return
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
+def _dtype_name_for(device: str) -> str:
+    return "float16" if device == "cuda" else "float32"
 
 
 def collect(
@@ -292,8 +341,9 @@ def _residual_blocks(model) -> int:
     raise ProbeBackendUnavailable("the model config does not name a layer count")
 
 
-def _load_hf(model_id: str, device: str):
-    key = (model_id, device)
+def _load_hf(model_id: str, device: str, dtype_name: str | None = None):
+    chosen = dtype_name or _dtype_name_for(device)
+    key = (model_id, device, chosen)
     cached = _HF.get(key)
     if cached is not None:
         return cached
@@ -304,7 +354,9 @@ def _load_hf(model_id: str, device: str):
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
-    dtype = torch.float16 if device == "cuda" else torch.float32
+    if chosen not in {"float16", "float32"}:
+        raise ProbeBackendUnavailable(f"unknown probe dtype {chosen!r}")
+    dtype = getattr(torch, chosen)
     model = _from_pretrained(
         AutoModelForCausalLM,
         model_id,

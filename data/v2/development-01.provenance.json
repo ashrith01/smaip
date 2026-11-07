@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "corpus_sha256": "ec59c6d44322239a2221e357b9c4d32d0ceae2366efb28b5ccf2456048d1c004",
+  "scope": "development-only",
+  "third_party_material": false,
+  "origin": "36 original synthetic documents authored for SMAIP on 2026-10-31; no external benchmark examples imported.",
+  "label_review": "Assistant reviewed each explicit malicious redirection versus factual, quoted, documentary or instructional text that does not redirect the agent.",
+  "human_label_review": false,
+  "source_and_group_policy": "Each clean/injected pair is a synthetic source group assigned wholly to one split. Sources are authored examples, not independently sampled real websites.",
+  "attack_family_policy": "Declared attack-family names are disjoint across splits. This is a development partition, not proof of semantic independence or a final held-out benchmark.",
+  "license_record": "Original generated project material. No third-party corpus was copied; repository-wide license selection remains separate.",
+  "limitations": [
+    "Six benign calibration records and six benign test records cannot substantiate a population 1% false-positive rate.",
+    "Authored examples share style and topic cues. No independent generalization claim.",
+    "No smoke inputs or earlier vendor development fixtures are included."
+  ],
+  "manifest_validation": {
+    "schema_version": 2,
+    "records": 36,
+    "counts": {
+      "train": {
+        "positive": 6,
+        "negative": 6
+      },
+      "calibration": {
+        "positive": 6,
+        "negative": 6
+      },
+      "test": {
+        "positive": 6,
+        "negative": 6
+      }
+    },
+    "manifest_sha256": "d9f938b14df1aba5132476ce6585f62a6fb573ec4edd03e8783e11e0cfd4c7f2",
+    "group_source_family_disjoint": true,
+    "sample_size_screen_passed": false,
+    "note": "This validates declared groups and normalized exact duplicates; label correctness, near-duplicates and statistical independence still need review."
+  }
+}

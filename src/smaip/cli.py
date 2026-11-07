@@ -7,7 +7,7 @@ from smaip.eval.week3 import week3_main
 from smaip.eval.week4 import week4_main
 from smaip.eval.week5 import week5_main
 from smaip.eval.week6 import week6_main
-from smaip.eval.week7 import week7_main
+from smaip.eval.week7 import rescore_main, week7_main
 from smaip.serving.benchmark import bench_main
 
 
@@ -60,6 +60,30 @@ def main(argv: list[str] | None = None) -> int:
     week7_parser.add_argument("--activations", default=None)
     week7_parser.add_argument("--results", default="reports/RESULTS_week7.md")
     week7_parser.add_argument("--output", default="reports/week7_eval.json")
+    rescore_parser = sub.add_parser("week7-rescore", help="rerun episodes with saved probes; no training")
+    rescore_parser.add_argument("--artifacts", default=None)
+    rescore_parser.add_argument("--results", default="reports/RESULTS_week7_rescore.md")
+    rescore_parser.add_argument("--output", default="reports/week7_rescore.json")
+    rescore_parser.add_argument("--subset", choices=["full", "tiny"], default="full")
+    rescore_parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default=None)
+    contract_parser = sub.add_parser("eval-contract", help="write the V2 BRD comparison contract; no model calls")
+    contract_parser.add_argument("--backend", choices=["mock", "hf-local", "vllm-local"], default="mock")
+    contract_parser.add_argument("--model", default="smaip-mock")
+    contract_parser.add_argument("--output", default="reports/v2/eval_contract.json")
+    agent_v2 = sub.add_parser("agent-v2", help="run bounded open-model research in an in-memory workspace")
+    agent_v2.add_argument("instruction")
+    agent_v2.add_argument("--vendor", required=True)
+    agent_v2.add_argument("--recipient", required=True)
+    agent_v2.add_argument("--backend", choices=["hf-local", "vllm-local"], default="hf-local")
+    agent_v2.add_argument("--variant", choices=["no-defense", "keyword-screen", "least-privilege-only", "gateway-only"], default="least-privilege-only")
+    agent_v2.add_argument("--approval-digest", default=None)
+    agent_v2.add_argument("--output", default="reports/v2/agent_run.json")
+    manifest_parser = sub.add_parser("validate-corpus-v2", help="validate declared source/family/group splits; no model calls")
+    manifest_parser.add_argument("path")
+    manifest_parser.add_argument("--output", default="reports/v2/manifest_review.json")
+    acceptance_parser = sub.add_parser("brd-gate", help="check measured BRD evidence; missing evidence is pending")
+    acceptance_parser.add_argument("path")
+    acceptance_parser.add_argument("--output", default="reports/v2/acceptance.json")
     bench_parser = sub.add_parser(
         "bench",
         help="compare HF and vLLM when CUDA is present; skip cleanly otherwise",
@@ -92,6 +116,48 @@ def main(argv: list[str] | None = None) -> int:
             results=args.results,
             output=args.output,
         )
+    if args.cmd == "week7-rescore":
+        return rescore_main(artifact_dir=args.artifacts, results=args.results, output=args.output, subset=args.subset, device=args.device)
+    if args.cmd == "eval-contract":
+        import json
+        from pathlib import Path
+        from smaip.eval.contract import contract_manifest
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(contract_manifest(backend=args.backend, model_id=args.model), indent=2) + "\n")
+        print(f"wrote {output}; contract only, not measured model results")
+        return 0
+    if args.cmd == "agent-v2":
+        import json
+        from dataclasses import replace
+        from pathlib import Path
+        from smaip.agents.open_loop import run_open_task
+        from smaip.eval.contract import evaluation_matrix
+        from smaip.serving.engines import engine_for_model
+        engine = engine_for_model(args.backend)
+        config = next(c for c in evaluation_matrix(backend=args.backend, model_id=engine.config.model_id) if c.name == args.variant)
+        config = replace(config, max_new_tokens=engine.config.max_new_tokens)
+        report = run_open_task(args.instruction, vendor=args.vendor, recipient=args.recipient,
+                              config=config, engine=engine, approval_digest=args.approval_digest)
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, indent=2) + "\n")
+        print(f"{report['status']}; model calls={report['model_calls']}; sandboxed effects only; wrote {output}")
+        return 0 if report['status'] in {"done", "approval_required"} else 1
+    if args.cmd in {"validate-corpus-v2", "brd-gate"}:
+        import json
+        from pathlib import Path
+        if args.cmd == "validate-corpus-v2":
+            from smaip.probes.manifest import load_manifest
+            _, report = load_manifest(Path(args.path))
+        else:
+            from smaip.eval.acceptance import assess
+            report = assess(json.loads(Path(args.path).read_text()), evidence_root=Path(args.path).resolve().parent)
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, indent=2) + "\n")
+        print(json.dumps(report, indent=2))
+        return 0 if args.cmd == "validate-corpus-v2" or report["passed"] else 1
     if args.cmd == "bench":
         return bench_main(["--output", args.output] + (["--model", args.model] if args.model else []))
     return 2
