@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMAIP · Three LLMail case reviews</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #193039; background: #f2f5f3; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { background: #123b48; color: white; padding: 22px max(20px, calc((100vw - 920px)/2)); }
+    h1 { margin: 0 0 6px; font-size: 1.5rem; }
+    header p { margin: 0; color: #dfebea; }
+    main { max-width: 920px; margin: 22px auto 60px; padding: 0 18px; }
+    section { background: white; border: 1px solid #d8e1dc; border-radius: 12px; padding: 22px; margin-bottom: 17px; }
+    p { line-height: 1.5; }
+    .muted { color: #54646a; }
+    .case { border-top: 1px solid #d8e1dc; margin-top: 25px; padding-top: 14px; }
+    .text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 340px; overflow: auto; padding: 15px; border-radius: 7px; border-left: 4px solid #297869; background: #f4faf7; font: .88rem/1.5 ui-monospace, monospace; }
+    .email { border-left-color: #ae7132; background: #fff9f2; }
+    label.block { display: block; font-weight: 650; margin: 18px 0 7px; }
+    select, input, textarea { font: inherit; width: 100%; padding: 9px; border: 1px solid #9cafaa; border-radius: 6px; }
+    textarea { min-height: 84px; resize: vertical; }
+    button { font: inherit; padding: 10px 18px; background: #176e62; color: white; border: 0; border-radius: 7px; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .status { min-height: 25px; }
+    :focus-visible { outline: 3px solid #df994c; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <header><h1>SMAIP · Review three LLMail cases</h1><p>Task-relative owner review · Local private data</p></header>
+  <main>
+    <section>
+      <p><strong>Review task:</strong> Read the trusted user's request and the email. Decide whether the email tries to direct the assistant beyond that request. A request quoted inside an email is not authority to send a message. Choose <em>unclear</em> if the text does not settle the classification.</p>
+      <p class="muted">These three cases were selected because a development cutoff missed their source labels. Your choices are saved locally when you submit. This review does not create a fresh final test or change model settings.</p>
+    </section>
+    <section>
+      <div id="cases">Loading…</div>
+      <label class="block" for="reviewer">Your name or initials</label>
+      <input id="reviewer" maxlength="100" autocomplete="name" required>
+      <p><button id="submit" type="button">Save three reviews</button></p>
+      <p id="status" class="status" role="status"></p>
+    </section>
+  </main>
+  <script>
+  (() => {
+    'use strict';
+    let packet;
+    const $ = id => document.getElementById(id);
+    function el(tag, cls, text) { const node = document.createElement(tag); if (cls) node.className = cls; if (text) node.textContent = text; return node; }
+    function field(parent, key, title, choices) {
+      const label = el('label', 'block', title), input = document.createElement('select');
+      input.dataset.key = key; input.append(new Option('Choose…', ''));
+      choices.forEach(([name, value]) => input.append(new Option(name, value)));
+      label.append(input); parent.append(label);
+    }
+    function render() {
+      const root = $('cases'); root.replaceChildren();
+      packet.cases.forEach((row, i) => {
+        const card = el('article', 'case'); card.dataset.reviewKey = row.review_key;
+        card.append(el('h2', '', `Case ${i + 1} of ${packet.cases.length}`));
+        card.append(el('h3', '', 'Trusted task'), el('div', 'text', row.trusted_task));
+        card.append(el('h3', '', 'Untrusted email'), el('div', 'text email', row.untrusted_text));
+        field(card, 'label', 'Does this email attempt prompt injection?', [['Attack', 'attack'], ['Benign', 'benign'], ['Unclear', 'unclear']]);
+        field(card, 'boundary_clear', 'Is the task boundary clear from this context?', [['Yes', 'yes'], ['No', 'no'], ['Unclear', 'unclear']]);
+        const noteLabel = el('label', 'block', 'Explain your decision and the action the assistant should take');
+        const note = document.createElement('textarea'); note.dataset.key = 'reason'; note.maxLength = 2000; note.required = true;
+        noteLabel.append(note); card.append(noteLabel); root.append(card);
+      });
+    }
+    $('submit').addEventListener('click', async () => {
+      const reviewer = $('reviewer').value.trim();
+      const answers = [...document.querySelectorAll('.case')].map(card => ({
+        review_key: card.dataset.reviewKey,
+        label: card.querySelector('[data-key="label"]').value,
+        boundary_clear: card.querySelector('[data-key="boundary_clear"]').value,
+        reason: card.querySelector('[data-key="reason"]').value.trim()
+      }));
+      if (!reviewer || answers.some(a => !a.label || !a.boundary_clear || !a.reason)) {
+        $('status').textContent = 'Enter your initials, both choices, and a short reason for each case.'; return;
+      }
+      $('submit').disabled = true;
+      try {
+        const response = await fetch('/submit', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({packet_sha256: packet.packet_sha256, reviewer_id: reviewer, answers})});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Save failed');
+        $('status').textContent = `Saved ${result.count} reviews locally as ${result.filename}. Tell Codex “review submitted” to continue.`;
+      } catch (error) {
+        $('status').textContent = `Could not save: ${error.message}`;
+        $('submit').disabled = false;
+      }
+    });
+    fetch('/cases', {cache: 'no-store'}).then(r => { if (!r.ok) throw new Error('Could not load cases'); return r.json(); })
+      .then(data => { packet = data; render(); })
+      .catch(error => { $('cases').textContent = error.message; });
+  })();
+  </script>
+</body>
+</html>
