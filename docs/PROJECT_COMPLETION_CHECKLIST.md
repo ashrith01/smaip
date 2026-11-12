@@ -1,6 +1,7 @@
 # SMAIP completion checklist
 
-Status checked 2026-11-07 on `main`. This distinguishes
+Portfolio release status checked 2026-11-07 on `main`; evidence steps updated
+2026-11-12 on this branch. This distinguishes
 a bounded, honest **portfolio release** from the stronger **BRD acceptance**
 claim. Completing the portfolio release does not certify the BRD. The owner's
 open-model-only decision remains in force.
@@ -46,15 +47,25 @@ open-model-only decision remains in force.
 
 ## Evidence work that can improve the portfolio release
 
-- [ ] **7. Owner label check.** Prepare the three LLMail examples missed by
+- [x] **7. Owner label check.** Prepare the three LLMail examples missed by
   the diagnostic cutoff for AV's task-relative review. Optionally sample up
   to 32 further distinct cases across source and label strata. Record the
   authorized task, source text, label, reason, and provenance. An assistant
   cannot mark these as AV-reviewed. A reviewed row from an already observed
-  source still is not a fresh final test.
-- [ ] **8. Audit experiment discrepancies.** Compare source labels with AV's
+  source still is not a fresh final test. The three-case local review page and
+  [pre-review audit](../reports/LLMAIL_MISSED_CASES_PRE_REVIEW_01.md) were
+  prepared on 2026-11-12. AV submitted all three reasoned judgments; the
+  [comparison audit](../reports/LLMAIL_OWNER_REVIEW_01_ANALYSIS.md) records
+  two source-label and prior-review conflicts. No optional 32-case sample was
+  requested.
+- [x] **8. Audit experiment discrepancies.** Compare source labels with AV's
   decisions, examine lineage and synthetic controls, and version any changed
-  training set or policy. Preserve R031 quarantine and original records.
+  training set or policy. Preserve R031 quarantine and original records. The
+  three missed rows' source mapping and shared author/scenario were checked.
+  The initial comparison found two conflicting repeat judgments; AV's linked
+  [clarification](../reports/LLMAIL_OWNER_REVIEW_02_RESOLUTION.md) resolved
+  both as attack. Original submissions and R031 quarantine remain intact; no
+  training set or policy changed, and no new final-test evidence was created.
 
 ## Full BRD acceptance: separate, resource-dependent work
 
@@ -62,7 +73,10 @@ open-model-only decision remains in force.
   grouped benign and attack cases before model selection; verify task scope,
   provenance, licenses, and labels. Keep fitting, feature selection, threshold
   calibration, and final-test roles separate. Do not reuse the observed
-  NVIDIA/LLMail rows as a fresh final test.
+  NVIDIA/LLMail rows as a fresh final test. A
+  [source gate](brd/INDEPENDENT_DATA_GATE_2026-11-12.md) identifies a pinned
+  candidate source and acquisition requirements; no new cases have been
+  acquired or accepted yet.
 - [ ] **10. Freeze and test a V4 operating point.** Extract needed features
   with the pinned open model, set a threshold on eligible calibration data,
   and evaluate attack recall, benign false alarms, uncertainty, source/family
