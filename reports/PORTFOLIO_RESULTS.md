@@ -1,5 +1,11 @@
 # SMAIP results and limits
 
+**Final study record, closed 2026-11-13.** Read the
+[study conclusion](STUDY_CONCLUSION.md) for the findings and interpretation,
+the [methods](../docs/STUDY_METHODS.md) for the experimental design, and the
+[reproducibility guide](../docs/REPRODUCIBILITY.md) for runnable components. Unperformed experiments below describe limits of the
+completed study and optional future work.
+
 This page separates agent task completion, probe ranking, fixed-cutoff
 classification, and attacker effects. Numbers are from preserved development
 experiments, not a combined final benchmark. The original Qwen2.5-3B-Instruct
@@ -57,4 +63,4 @@ five-point noninferiority, or serving performance/cost. The four-pair attack
 pilot is not run; V4 has no validated serving cutoff. New, independently
 grouped data and a real-model attack comparison are required before those
 claims. The [completion checklist](../docs/PROJECT_COMPLETION_CHECKLIST.md)
-tracks them separately from the portfolio release.
+retains them as optional future extensions outside the completed study.

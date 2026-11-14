@@ -1,6 +1,7 @@
 # ADR 0001: Bound the portfolio release claim
 
-Status: accepted, 2026-11-07.
+Status: accepted, 2026-11-07; research-track commitment superseded by
+[ADR 0002](0002-close-as-completed-study.md) on 2026-11-13.
 
 ## Context
 

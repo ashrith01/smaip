@@ -1,12 +1,12 @@
 # SMAIP completion checklist
 
-Portfolio release status checked 2026-11-07 on `main`; evidence steps updated
-2026-11-12 on this branch. This distinguishes
-a bounded, honest **portfolio release** from the stronger **BRD acceptance**
-claim. Completing the portfolio release does not certify the BRD. The owner's
-open-model-only decision remains in force.
+**Closed as a bounded research and engineering study on 2026-11-13.**
+The owner chose to conclude the project using the completed experiments.
+Steps 1–8 document completed work. The original steps 9–13 were not performed or accepted; their status is
+explained below alongside three optional future research directions. See the [study conclusion](../reports/STUDY_CONCLUSION.md)
+and [closure decision](adr/0002-close-as-completed-study.md).
 
-## Portfolio release: complete these in order
+## Completed portfolio release
 
 - [x] **1. Establish the current baseline.** Full local pytest run exited 0
   on 2026-11-07 (two skipped tests). Verified `origin` points to
@@ -45,7 +45,7 @@ open-model-only decision remains in force.
   repository remains **private**; public visibility needs a separate owner
   decision.
 
-## Evidence work that can improve the portfolio release
+## Completed owner review and evidence audit
 
 - [x] **7. Owner label check.** Prepare the three LLMail examples missed by
   the diagnostic cutoff for AV's task-relative review. Optionally sample up
@@ -67,38 +67,35 @@ open-model-only decision remains in force.
   both as attack. Original submissions and R031 quarantine remain intact; no
   training set or policy changed, and no new final-test evidence was created.
 
-## Full BRD acceptance: separate, resource-dependent work
+## Optional future research
 
-- [ ] **9. Obtain independent detector data.** Reserve new, separately
-  grouped benign and attack cases before model selection; verify task scope,
-  provenance, licenses, and labels. Keep fitting, feature selection, threshold
-  calibration, and final-test roles separate. Do not reuse the observed
-  NVIDIA/LLMail rows as a fresh final test. A
-  [source gate](brd/INDEPENDENT_DATA_GATE_2026-11-12.md) identifies a pinned
-  candidate source and acquisition requirements; no new cases have been
-  acquired or accepted yet.
-- [ ] **10. Freeze and test a V4 operating point.** Extract needed features
-  with the pinned open model, set a threshold on eligible calibration data,
-  and evaluate attack recall, benign false alarms, uncertainty, source/family
-  shifts, and hard benign cases on a final holdout. The current V4 model has
-  no serving threshold and does not establish TPR at 1% FPR.
-- [ ] **11. Run the real-model attack study.** Establish that no-defense
-  episodes can complete legitimate tasks and are susceptible to the chosen
-  attacks; then compare matched defense arms, including keyword, least
-  privilege, probe-only, and full stack. Measure actual unauthorized sandbox
-  effects and clean utility, plus adaptive cases. The four-pair pilot is
-  prepared but not run; current zero-ASR ties do not show superiority.
-- [ ] **12. Complete production-path integration.** Wire the constrained
-  real-model task path into the intended orchestration and mediated gateway;
-  add V4 raw-document extraction and scoring only after validation. Finish
-  model-input/output privacy handling, review integration, and regression
-  tests. Keep the mock CI path intact.
-- [ ] **13. Measure operations and acceptance.** Run repeated serving,
-  cache, concurrency, latency and actual cost benchmarks; compare external
-  defenses under the same evaluation unit; check clean-utility, attack,
-  statistical and performance gates. Report any failed gate instead of
-  declaring full BRD acceptance.
+These are three possible new studies, not requirements for closure.
 
-The older October 31 runbooks are historical records; later reports supersede
-their initial pending pilot statuses. Use the current audit reports before
-launching or repeating a GPU job.
+| Extension | Research question | Evidence a new study would need |
+| --- | --- | --- |
+| Independent detector validation | Does the V4 signal generalize at a useful operating point? | New grouped cases, audited labels and provenance, a threshold frozen on calibration data, and an untouched final test with recall, false alarms, and uncertainty. |
+| Matched agent defense comparison | Which controls reduce unauthorized effects while preserving task utility? | A capable and susceptible undefended baseline, matched clean/attack cases, explicit defense arms, actual sandbox effects, and utility/cost measurements. |
+| External replication | Can another researcher reproduce the documented workflow and interpret its decisions? | A fresh environment, the supplied demo and software checks, recorded setup problems, and a report distinguishing reproduced software behavior from historical model measurements. |
+
+The original BRD's steps 9–10 map to detector validation; step 11 maps to the
+agent comparison. Steps 12–13 proposed production integration and operational
+acceptance. Those product ambitions were not achieved and are outside the
+closed study. They would require a separate product decision rather than an
+extension of this completion checklist. The preliminary
+[source gate](brd/INDEPENDENT_DATA_GATE_2026-11-12.md) remains a historical
+planning record; no new data was acquired through it.
+
+## Final documentation pass
+
+- [x] State the research questions and retrospective hypotheses.
+- [x] Explain models, datasets, comparisons, and outcome measures.
+- [x] Connect findings to hypotheses, including negative and inconclusive results.
+- [x] Document checkout-level reproducibility and private-artifact boundaries.
+- [x] State limitations and the study's final interpretation.
+- [x] Limit future research to the three questions above.
+
+Read the [methods](STUDY_METHODS.md),
+[reproducibility guide](REPRODUCIBILITY.md), and
+[conclusion](../reports/STUDY_CONCLUSION.md) together. The historical experiment
+reports retain their original dates and pending statuses; the closure decision
+supersedes those statuses as project commitments.
