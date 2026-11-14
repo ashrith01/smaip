@@ -1,5 +1,8 @@
 # Independent detector data: source gate
 
+Historical planning record. The [study closure decision](../adr/0002-close-as-completed-study.md)
+supersedes this acquisition plan as an active project commitment.
+
 Checked 2026-11-12. This is a source-screening record for checklist step 9,
 not an acquired or accepted evaluation set. No new case text was downloaded,
 reviewed, scored, or assigned to a split in this pass.

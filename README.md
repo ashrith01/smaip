@@ -1,18 +1,43 @@
-# SMAIP: an evidence-bound AI agent and prompt injection testbed
+# SMAIP: a study of evidence, authority, and prompt injection in AI agents
 
-SMAIP studies a practical failure mode in AI agents: a user asks for a report,
-but a document the agent reads contains a second, unauthorized instruction.
-The project combines a task-scoped tool gateway, source-backed numeric claims,
-one-use owner approval, and experiments with activation-based injection probes.
-It uses open models for real-model experiments and a CPU-only scripted path for
-local demonstrations and continuous integration.
+**Study completed · November 2026**
 
-**Current result:** a 25-task synthetic clean pilot completed 22/25 tasks with
-one agent and 23/25 with specialists. Earlier frozen probes failed to transfer
-usefully to 400 synthetic NVIDIA attack/clean pairs. A newer V4 probe ranks the
-already observed NVIDIA and Microsoft LLMail source labels well, but has no
-validated serving threshold or real-agent attack result. See
-[Results and limits](reports/PORTFOLIO_RESULTS.md) for exact denominators.
+I built SMAIP to investigate a question: when an AI agent reads untrusted
+material, how can its evidence and tool permissions stay tied to the user's
+original task? I explored task-scoped action checks, source-backed numeric
+summaries, owner approval, and small classifiers trained on features from a
+frozen open language model.
+
+The study produced a working experimental framework and several useful
+findings. Earlier probe thresholds failed on a new source despite a reasonably
+strong ranking score. Later features separated the observed source labels,
+but that result did not establish a validated operating threshold. A bounded
+real-model pilot completed most clean tasks, while the attack experiments did
+not establish a defense advantage. These outcomes define the conclusion of
+this study; the repository preserves the successful checks and the failures.
+
+[Study methods](docs/STUDY_METHODS.md) ·
+[Read the study conclusion](reports/STUDY_CONCLUSION.md) ·
+[Detailed measurements](reports/PORTFOLIO_RESULTS.md) ·
+[Study closure and scope](docs/PROJECT_COMPLETION_CHECKLIST.md)
+
+## What I investigated and found
+
+| Question | Finding | Evidence and limits |
+| --- | --- | --- |
+| Can an agent produce a numeric report with checked sources and controlled actions? | The bounded workflow completed most clean tasks. | Single agent: **22 of 25** tasks; specialists: **23 of 25**. Synthetic tasks and sandbox effects; the one-task difference does not establish superiority. |
+| Does a useful ranking score imply a useful fixed detector threshold? | No. The earlier frozen operating points failed to transfer. | Linear probe caught **0 of 400** attacks; mean-pool probe caught **1 of 400**. The latter still had AUROC **0.8874**. |
+| Do later frozen-model features contain a useful signal? | They separated the observed source labels, warranting further investigation. | V4's observed LLMail AUROC was **1.0**; a diagnostic cutoff flagged **125 of 128** attacks and **0 of 160** benign emails. Prior observation and shared lineage limit interpretation. |
+| Did the agent experiments demonstrate attack reduction? | They did not establish a defense advantage. | The small development study observed **0 of 4** attacker objectives in every arm, including no defense. |
+
+These questions summarize an exploratory development sequence; they were not
+a prospectively registered experimental protocol. The [methods](docs/STUDY_METHODS.md)
+explain the comparisons and changes across versions.
+
+The main lesson is methodological: source evidence, action authority, detector
+ranking, threshold behavior, and actual attacker effects need separate checks.
+A strong result on one does not establish the others. See the
+[conclusion](reports/STUDY_CONCLUSION.md) for the interpretation and limitations.
 
 ## Try the guarded workflow without a GPU
 
@@ -37,6 +62,9 @@ no real email and does not run a language model. The real Qwen pilot and its
 archived evidence are reported separately; the demo does not claim to reproduce
 those model results.
 
+For environment details, expected output, and historical-artifact availability,
+see the [reproducibility guide](docs/REPRODUCIBILITY.md).
+
 ## How it works
 
 ```mermaid
@@ -59,20 +87,6 @@ current V4 probe is a **development experiment** and is not enabled in this
 workflow. [Architecture and scope](docs/brd/BRD_LIVE_RECHECK_2026-10-31.md) ·
 [Terms](GLOSSARY.md) · [Design decisions](docs/adr/)
 
-## Results at a glance
-
-| Experiment | Observed result | Boundary |
-| --- | --- | --- |
-| Audited Qwen clean-task pilot | 22/25 single agent; 23/25 specialist | Synthetic clean tasks, no attack episodes in this pilot |
-| Frozen V2 probes on external NVIDIA pairs | 0/400 and 1/400 attacks caught at their frozen cutoffs | Failed transfer; not the new V4 probe |
-| V4 NVIDIA grouped development ranking | AUROC 1.0000 on 680 source-labeled rows | Feature and source already observed; no final test |
-| V4 Microsoft LLMail diagnostic | AUROC 1.0000; NVIDIA-derived diagnostic cutoff flagged 125/128 attacks and 0/160 benign emails | LLMail already observed, connected attack lineage; cutoff not deployed |
-
-**No deployment claim:** V4 has no calibrated operating threshold, independent
-final evaluation, 1% false-positive-rate result, or demonstrated reduction in
-real-agent attacker success. The old probe transfer failure and all pilot
-failures remain in the record. [Full results](reports/PORTFOLIO_RESULTS.md)
-
 ## Repository guide
 
 - [`src/smaip/agents/`](src/smaip/agents/): task progression, source evidence,
@@ -87,11 +101,16 @@ failures remain in the record. [Full results](reports/PORTFOLIO_RESULTS.md)
 - [`docs/DEVELOPMENT_HISTORY.md`](docs/DEVELOPMENT_HISTORY.md): the original
   week-by-week walkthrough, retained for context.
 
-## Status and next research steps
+## Study status
 
-This is a **research and engineering portfolio project**, not a production
-security product. The [completion checklist](docs/PROJECT_COMPLETION_CHECKLIST.md)
-separates the published portfolio scope from the stronger original BRD gates.
-The next detector study needs fresh grouped data, a threshold chosen without
-looking at the final test, and real-model agent attack comparisons. Qwen remains
-frozen; this project trains small probes on its features, not the base model.
+This study is closed at the evidence documented here. The original production
+and full BRD acceptance ambitions were not achieved and are retained as
+optional future research. There is no validated serving threshold for V4 or
+population 1%-false-positive-rate claim. Qwen stayed frozen; the trained
+components were small probes on its features.
+
+Readers can run the scripted demonstration, inspect the implementation and
+audited reports, or use the evaluation structure as a starting point for their
+own experiments. Private external data, review submissions, and model/vector
+artifacts are excluded from Git; experiments requiring them cannot be fully
+reproduced from the public source alone.
