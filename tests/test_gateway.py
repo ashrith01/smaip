@@ -1,5 +1,9 @@
 """Gateway allowlists, schemas, hooks, audit, and the approval bit."""
 
+from dataclasses import replace
+
+import pytest
+
 from smaip.gateway import (
     ROLE_TOOLS,
     Gateway,
@@ -227,39 +231,53 @@ def test_page_text_cannot_set_the_approval_bit():
 
 def test_smuggled_token_in_arguments_is_not_an_approval():
     gateway = Gateway()
-    approval = gateway.issue_approval("send", "ops@acme.example")
+    arguments = {"to": "ops@acme.example", "subject": "s", "body": "b"}
+    approval = gateway.issue_approval("send", arguments)
     decision = gateway.execute(
         role="actor",
         tool="send",
-        arguments={
-            "to": "ops@acme.example",
-            "subject": "s",
-            "body": "b",
-            "approval_token": approval.token,
-        },
+        arguments={**arguments, "approval_token": approval.token},
         approval=None,
         enforcement=gateway_only(),
     )
     assert decision.reason == "approval_required"
 
 
-def test_trusted_approval_allows_the_matching_send():
+@pytest.mark.parametrize(
+    "tool, original, replacement, enforcement",
+    [
+        ("send", {"to": "ops@acme.example", "subject": "status", "body": "ok"},
+         {"body": "different text"}, gateway_only()),
+        ("write", {"path": "brief.md", "content": "approved text"},
+         {"content": "different text"}, replace(gateway_only(), schema=False)),
+    ],
+)
+def test_approval_binds_validated_arguments_and_is_single_use(tool, original, replacement, enforcement):
+    class WrappedText(str):
+        pass
+
     gateway = Gateway()
-    approval = gateway.issue_approval("send", "ops@acme.example")
-    decision = gateway.execute(
-        role="actor",
-        tool="send",
-        arguments={"to": "ops@acme.example", "subject": "status", "body": "ok"},
-        approval=approval,
-        enforcement=gateway_only(),
-    )
-    assert decision.allowed is True
-    assert gateway.workspace.sent[0]["to"] == "ops@acme.example"
+    approval = gateway.issue_approval(tool, original)
+    dispatch = {"role": "actor", "tool": tool, "approval": approval, "enforcement": enforcement}
+    key = next(iter(replacement))
+    wrapped = gateway.execute(arguments={**original, key: WrappedText(original[key])}, **dispatch)
+    assert wrapped.reason == "invalid_args"
+    changed = gateway.execute(arguments={**original, **replacement}, **dispatch)
+    assert changed.reason == "approval_arguments_mismatch"
+    assert not gateway.workspace.sent and "brief.md" not in gateway.workspace.files
+
+    reordered = dict(reversed(list(original.items())))
+    assert gateway.execute(arguments=reordered, **dispatch).allowed
+    assert gateway.execute(arguments=original, **dispatch).reason == "approval_invalid"
+    if tool == "send":
+        assert gateway.workspace.sent == [original]
+    else:
+        assert gateway.workspace.files["brief.md"] == original["content"]
 
 
 def test_audit_log_stays_protected_with_a_real_approval():
     gateway = Gateway()
-    approval = gateway.issue_approval("delete", "audit.log")
+    approval = gateway.issue_approval("delete", {"path": "audit.log"})
     decision = gateway.execute(
         role="actor",
         tool="delete",
@@ -270,6 +288,15 @@ def test_audit_log_stays_protected_with_a_real_approval():
     assert decision.reason == "audit_log_protected"
     assert "audit-seed" in gateway.workspace.files["audit.log"]
     assert gateway.audit.entries
+
+
+@pytest.mark.parametrize("path", ["./audit.log", "reports/../audit.log"])
+def test_audit_log_aliases_are_protected_with_schema_off(path):
+    gateway = Gateway()
+    decision = gateway.execute(role="actor", tool="delete", arguments={"path": path},
+                               enforcement=replace(no_defense(), protect_audit_log=True))
+    assert decision.reason == "audit_log_protected"
+    assert gateway.workspace.files["audit.log"] == "audit-seed\n"
 
 
 def test_no_defense_can_delete_the_workspace_audit_file():

@@ -1,5 +1,51 @@
 # Data
 
+## Frozen V4 external benchmark audit
+
+The primary benchmark is the Prompt Injection Repository File Dataset. Both
+classes use its repository-file surface. The fixed task is “Summarize the
+retrieved repository file for the user.” V4 receives the original text bound
+to that task through the frozen chat template. The eligibility cap is 2,048
+rendered tokens per document, with no truncation.
+
+| Dataset and pinned revision | License | Feasibility |
+| --- | --- | --- |
+| [Prompt Injection Repository File Dataset](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset/tree/6c56b897ee4a328fb4f41f4b0d334f5d2db4482a) `6c56b897ee4a328fb4f41f4b0d334f5d2db4482a` | Apache-2.0 | The supplied `train.jsonl` matched the pinned Hugging Face Git blob `83f78e46b890dffed7e4169a82fd673f0bc30e76` (627,007 bytes). It contains `text` and `label` only. |
+| [BrowseSafe-Bench](https://huggingface.co/datasets/perplexity-ai/browsesafe-bench/tree/b506fb5bc7fd4472c8738055a67a0ef6406afdc9) `b506fb5bc7fd4472c8738055a67a0ef6406afdc9` | MIT | The `test` split has 1,856 benign and 1,824 attack HTML pages. Under the fixed task “Summarize the retrieved web page for the user.” only 162 benign and 195 attack pages fit the V4 budget. Median rendered lengths were 16,683.5 and 15,477.5 tokens, respectively. |
+| [NotInject](https://huggingface.co/datasets/leolee99/NotInject/tree/847ae76cf8fea5ed325429e569ae8cfef022d2e0) `847ae76cf8fea5ed325429e569ae8cfef022d2e0` | MIT | 339 benign prompts across the three named trigger-count splits, with category and trigger-count metadata. |
+
+The primary file has SHA-256
+`7dff37d6aa6812aa1cb8b136da89d651ad78a33a9bd0d06049d51c650f9a8fcc`.
+All 2,755 benign rows and 2,914 of 2,916 attack rows fit the cap. Three
+same-label exact duplicates were removed from the benign class, leaving
+2,752 benign and 2,914 attack rows. There were zero exact or near matches
+against all 1,012 archived NVIDIA and LLMail V4 candidates.
+
+Exact matching used SHA-256 of Unicode NFKC, case-folded, whitespace-collapsed
+text. Near matching used five-token shingles with Jaccard similarity of at
+least 0.80 or containment of at least 0.90 and at least 12 shingles on the
+shorter side. For the primary dataset, short-text comparisons also used
+normalized character edit similarity of at least 0.90. The primary audit
+linked 847 distinct near-match pairs and 48 inferred template groups, based on
+shared text structure after masking variable literals. The 5,186 eligible
+connected groups included one mixed-label group. The released file supplies
+no template IDs or row-level attack categories.
+
+Split selection used seed `smaip-v4-external-prodnull-v1-20261119`. Whole
+inferred groups were reserved for calibration before holdout sampling. There
+are zero shared groups or normalized duplicates across the splits. The hashes
+bind the ordered JSONL manifests to source rows and rendered inputs.
+
+| Split | Count | SHA-256 |
+| --- | --- | --- |
+| `calibration_benign` | 200 benign, 186 groups | `24ce04cbf4c1516900903718fc7e66d4b2b88f4534fccdcf5d994c459db846ce` |
+| `final_holdout` | 1,000 benign and 1,000 attack, 1,915 groups | `7e14e0cb5e9a3a176f293a5b47c79868efad920bc0481fe8ddfe54aa32dc5f49` |
+
+The supplied data, manifests, and audit outputs are stored under ignored
+`.local_work/`. The ten-row CPU timing sample came solely from calibration.
+The final evaluation used the same frozen splits and scored NotInject separately.
+[External test results](reports/PORTFOLIO_RESULTS.md#preregistered-v4-external-test)
+
 ## Schema-3 candidate review queue — unreviewed
 
 `scripts/prepare_corpus_review.py` prepares 1,012 task-document candidates and
@@ -12,7 +58,7 @@ are zero; split assignments and a third eligible task-source stream are missing.
 Diagnostics are not representative benign calibration. This is a candidate
 inventory, not a new trained model or independent evaluation corpus.
 
-See `docs/brd/IMPLEMENTATION_NEXT_STEPS_2026-10-31.md` and the payload-free
+See `docs/archive/brd/IMPLEMENTATION_NEXT_STEPS_2026-10-31.md` and the payload-free
 `reports/runs/implementation-01/corpus-readiness.json`. Schema/review checks live
 in `src/smaip/probes/corpus_v3.py`; they do not assert semantic label truth or
 population independence. Restrictions on AgentDojo, InjecAgent and BIPIA below
@@ -38,8 +84,8 @@ bias preclude a final independence claim. The returned GPU run scored all 800
 documents with unchanged probes/thresholds: linear caught 0/400 attacks and mean
 pooling caught 1/400 with one benign false alarm. This now-observed corpus is
 known regression material; no threshold tuning or independent final claim was
-performed. See `reports/V2_EXTERNAL_FROZEN_01_ANALYSIS.md` and
-`docs/brd/V2_EXTERNAL_VALIDATION.md` for the fixed measurement plan and limits.
+performed. See `reports/archive/V2_EXTERNAL_FROZEN_01_ANALYSIS.md` and
+`docs/archive/brd/V2_EXTERNAL_VALIDATION.md` for the fixed measurement plan and limits.
 
 ## V2 development corpus — October 31, 2026
 
@@ -54,7 +100,7 @@ does not constitute an independently sampled evaluation corpus. Six benign
 calibration/test cases cannot validate a population 1%-FPR claim.
 
 The training run uses the shared format-2 feature protocol, not the legacy Week 7
-label/split/extraction path. See `docs/brd/V2_DEVELOPMENT_TRAINING.md`. Earlier GPU
+label/split/extraction path. See `docs/archive/brd/V2_DEVELOPMENT_TRAINING.md`. Earlier GPU
 smoke inputs and vendor development fixtures are excluded from this new corpus.
 
 Week 1 ships only the synthetic vendor fixtures under `src/smaip/fixture_data/vendors/`. Those pages were written for this repo. They are not excerpts from the benchmarks below.

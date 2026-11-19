@@ -30,3 +30,4 @@ htmlcov/
 /reports/v2/
 /artifacts/v2/
 /.local-data/
+/.local_work/

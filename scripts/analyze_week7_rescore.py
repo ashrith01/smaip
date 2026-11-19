@@ -33,20 +33,23 @@ def metrics(rows, kind, threshold):
 
 def main():
     archive = Path('reports/week7-rescore-results.tar.gz')
-    result = json.loads(Path('reports/week7_rescore.json').read_text())
+    archived_report = Path('reports/archive/RESULTS_week7_rescore.md')
+    saved_report = Path('reports/week7_rescore.json')
+    result = json.loads(saved_report.read_text())
     with tarfile.open(archive) as tar:
-        expected = {'reports/RESULTS_week7_rescore.md', 'reports/week7_rescore.json'}
-        assert {m.name for m in tar.getmembers()} == expected
-        for name in expected:
+        expected = {'reports/RESULTS_week7_rescore.md': archived_report, str(saved_report): saved_report}
+        assert {m.name for m in tar.getmembers()} == set(expected)
+        for name, path in expected.items():
             member = tar.getmember(name)
             assert member.isfile() and member.size < 2_000_000
-            assert tar.extractfile(member).read() == Path(name).read_bytes(), name
+            assert tar.extractfile(member).read() == path.read_bytes(), name
     assert (result['model_id'], result['backend'], result['device'], result['subset']) == ('Qwen/Qwen2.5-3B-Instruct', 'hf', 'cuda', 'full')
     for name, digest in result['probe_sha256'].items():
         assert sha(Path('artifacts/probes') / name) == digest, name
     original_manifest = json.loads(Path('reports/runs/week7-gpu-original/manifest.json').read_text())
     for name, entry in original_manifest['files'].items():
-        assert sha(name) == entry['sha256'], name
+        path = 'reports/archive/RESULTS_week7.md' if name == 'reports/RESULTS_week7.md' else name
+        assert sha(path) == entry['sha256'], name
     source_root = Path('src/smaip')
     current_sources = {str(p.relative_to(source_root)): sha(p) for p in source_root.rglob('*.py')}
     source_snapshot = assert_sources(result['source_sha256'])
@@ -112,9 +115,8 @@ def main():
     Path('reports/week7_rescore_validation.json').write_text(json.dumps(report, indent=2) + '\n')
     snapshot = Path('reports/runs/week7-gpu-rescore')
     snapshot.mkdir(parents=True, exist_ok=True)
-    for name in ('RESULTS_week7_rescore.md', 'week7_rescore.json'):
-        source = Path('reports') / name
-        target = snapshot / name
+    for source in (archived_report, saved_report):
+        target = snapshot / source.name
         if target.exists():
             assert target.read_bytes() == source.read_bytes()
         else:

@@ -2,21 +2,23 @@
 
 **Study completed · November 2026**
 
-I built SMAIP to investigate a question: when an AI agent reads untrusted
-material, how can its evidence and tool permissions stay tied to the user's
-original task? I explored task-scoped action checks, source-backed numeric
-summaries, owner approval, and small classifiers trained on features from a
-frozen open language model.
+I built SMAIP as a research framework for AI agents that read untrusted
+documents. The architecture pairs source-checked numeric summaries with
+task-scoped tool permissions, approval for exact action arguments, and an
+in-memory workspace for testing side effects. The repository includes a
+CPU-only scripted demo, a replayable evaluation harness, and frozen-model
+probe experiments.
 
-The study produced a working experimental framework and several useful
-findings. Earlier probe thresholds failed on a new source despite a reasonably
-strong ranking score. Later features separated the observed source labels,
-but that result did not establish a validated operating threshold. A bounded
-real-model pilot completed most clean tasks, while the attack experiments did
-not establish a defense advantage. These outcomes define the conclusion of
-this study; the repository preserves the successful checks and the failures.
+The real-model pilot passed 22 of 25 clean tasks with a single agent and 23
+of 25 with specialists. The attack experiments left the defense advantage
+unresolved. In a preregistered, group-disjoint test on 2,000 repository files,
+frozen V4 reached AUROC 0.7379 (95% CI 0.7126–0.7608): its development cutoff
+flagged 68.1% of benign files (and 84.96% of NotInject trigger-word prompts),
+while its target-calibrated cutoff held benign FPR to 0.4% but caught only
+2.6% of attacks. V4 serving remains disabled.
 
 [Study methods](docs/STUDY_METHODS.md) ·
+[External test results](reports/PORTFOLIO_RESULTS.md#preregistered-v4-external-test) ·
 [Read the study conclusion](reports/STUDY_CONCLUSION.md) ·
 [Detailed measurements](reports/PORTFOLIO_RESULTS.md) ·
 [Study closure and scope](docs/PROJECT_COMPLETION_CHECKLIST.md)
@@ -30,9 +32,9 @@ this study; the repository preserves the successful checks and the failures.
 | Do later frozen-model features contain a useful signal? | They separated the observed source labels, warranting further investigation. | V4's observed LLMail AUROC was **1.0**; a diagnostic cutoff flagged **125 of 128** attacks and **0 of 160** benign emails. Prior observation and shared lineage limit interpretation. |
 | Did the agent experiments demonstrate attack reduction? | They did not establish a defense advantage. | The small development study observed **0 of 4** attacker objectives in every arm, including no defense. |
 
-These questions summarize an exploratory development sequence; they were not
-a prospectively registered experimental protocol. The [methods](docs/STUDY_METHODS.md)
-explain the comparisons and changes across versions.
+These questions summarize the exploratory development sequence. The later V4
+external test followed a preregistered protocol. [Study methods](docs/STUDY_METHODS.md) ·
+[External test](reports/PORTFOLIO_RESULTS.md#preregistered-v4-external-test)
 
 The main lesson is methodological: source evidence, action authority, detector
 ranking, threshold behavior, and actual attacker effects need separate checks.
@@ -62,6 +64,19 @@ no real email and does not run a language model. The real Qwen pilot and its
 archived evidence are reported separately; the demo does not claim to reproduce
 those model results.
 
+**Expected output (excerpt)**
+
+```text
+  "refusal_reason": "unauthorized recipient argument rejected by action schema",
+  "sent_before_owner_approval": 0,
+  "pending_recipient": "owner@example.com",
+  "sent_after_owner_approval": [
+    {
+      "to": "owner@example.com",
+      "subject": "Vendor numeric summary",
+      "body": "revenue_last_quarter=42"
+```
+
 For environment details, expected output, and historical-artifact availability,
 see the [reproducibility guide](docs/REPRODUCIBILITY.md).
 
@@ -80,11 +95,13 @@ flowchart LR
     D -. development feature experiment .-> P[V4 activation probe]
 ```
 
-The document's text supplies evidence; it does not supply tool permissions,
-recipients, or approval. A model proposes claims and actions, while code checks
+The model can use page text as evidence. Trusted task state sets tool
+permissions, recipients, and approval. A model proposes claims and actions, while code checks
 the source, exact numeric line, action arguments, and saved checkpoint. The
-current V4 probe is a **development experiment** and is not enabled in this
-workflow. [Architecture and scope](docs/brd/BRD_LIVE_RECHECK_2026-10-31.md) ·
+gateway consumes its argument-bound approval after successful dispatch. A
+quarantine label preserves the scripted page record as tainted evidence.
+Model-facing callers withhold the raw text. V4 remains an offline experiment.
+[Architecture and scope](docs/archive/brd/BRD_LIVE_RECHECK_2026-10-31.md) ·
 [Terms](GLOSSARY.md) · [Design decisions](docs/adr/)
 
 ## Repository guide
@@ -97,7 +114,9 @@ workflow. [Architecture and scope](docs/brd/BRD_LIVE_RECHECK_2026-10-31.md) ·
 - [`tests/`](tests/): CPU checks; CI does not download model weights.
 - [`DATA.md`](DATA.md): dataset origins, transformations, and license notes.
 - [`reports/`](reports/PORTFOLIO_RESULTS.md): audited measurements and known
-  failures. Detailed historical runbooks live under `docs/brd/`.
+  failures. [Archived reports](reports/archive/)
+- [`docs/archive/`](docs/archive/): earlier plans, recovery notes, runbooks,
+  and repository guidance.
 - [`docs/DEVELOPMENT_HISTORY.md`](docs/DEVELOPMENT_HISTORY.md): the original
   week-by-week walkthrough, retained for context.
 

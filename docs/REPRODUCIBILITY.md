@@ -61,10 +61,10 @@ The temporary review database is removed when the demo exits.
 | Study component | Available in the repository | Additional material needed for full reproduction |
 | --- | --- | --- |
 | Guarded scripted workflow | Demo source, implementation, fixtures, regression tests | Installed ordinary dependencies only. |
-| Clean Qwen agent pilot | Experiment code and [audited report](../reports/EVIDENCE_CLEAN_03_COMPLETED_ANALYSIS.md) | Matching model revision/runtime and the original run inputs and outputs referenced by the report. |
-| Frozen V2 external transfer | Evaluation code, provenance documentation, [transfer report](../reports/V2_EXTERNAL_FROZEN_01_ANALYSIS.md) | Pinned external source snapshot, derived corpus, frozen probe/vector artifacts, and matching feature protocol. |
-| V4 probe development and cutoff diagnostic | Feature/fit/evaluation scripts and [probe report](../reports/FEATURE_V4_SOLO_PROBE_01.md) | Private archived vectors, source candidates, fitted model and predictions under `.local-data/`; raw-document extraction additionally needs the pinned Qwen snapshot/runtime. |
-| AV label review and clarification | Review/audit tooling and [resolution report](../reports/LLMAIL_OWNER_REVIEW_02_RESOLUTION.md) | Original private review submissions, clarification, sealed mapping, and source files matched by the recorded hashes. |
+| Clean Qwen agent pilot | Experiment code and [audited report](../reports/archive/EVIDENCE_CLEAN_03_COMPLETED_ANALYSIS.md) | Matching model revision/runtime and the original run inputs and outputs referenced by the report. |
+| Frozen V2 external transfer | Evaluation code, provenance documentation, [transfer report](../reports/archive/V2_EXTERNAL_FROZEN_01_ANALYSIS.md) | Pinned external source snapshot, derived corpus, frozen probe/vector artifacts, and matching feature protocol. |
+| V4 probe development and cutoff diagnostic | Feature/fit/evaluation scripts and [probe report](../reports/archive/FEATURE_V4_SOLO_PROBE_01.md) | Private archived vectors, source candidates, fitted model and predictions under `.local-data/`; raw-document extraction additionally needs the pinned Qwen snapshot/runtime. |
+| AV label review and clarification | Review/audit tooling and [resolution report](../reports/archive/LLMAIL_OWNER_REVIEW_02_RESOLUTION.md) | Original private review submissions, clarification, sealed mapping, and source files matched by the recorded hashes. |
 
 The [results page](../reports/PORTFOLIO_RESULTS.md) links the detailed evidence
 for each reported measurement. The [data inventory](../DATA.md) records source
@@ -78,6 +78,8 @@ remain under ignored `.local-data/` or other excluded paths. Access to those
 artifacts and compliance with their source licenses would be required to
 recompute the corresponding historical measurements. No private artifact
 access is required to inspect the public reports or run the scripted demo.
+
+The multi-megabyte Week 7 parity vector dump is excluded from Git and verified directly from the original result archive by `scripts/analyze_week7_parity.py`.
 
 If the exact original inputs are unavailable, a newly acquired dataset or new
 model run is a separate replication experiment. Record its revisions,

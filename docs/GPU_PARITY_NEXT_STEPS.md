@@ -2,7 +2,7 @@
 
 ## Diagnostic completed
 
-The GPU archive has been returned and verified. Serving and batch-one vectors/scores match exactly; batch-four reproduces the Ferry threshold crossing in both repeats. The diagnostic completed with `needs_review` as designed. No token mismatch or truncation occurred. See `reports/WEEK7_PARITY_ANALYSIS.md` for the evidence and next local implementation/data work. The GPU commands below are retained as historical instructions and do not need repeating for the same check.
+The GPU archive has been returned and verified. Serving and batch-one vectors/scores match exactly; batch-four reproduces the Ferry threshold crossing in both repeats. The diagnostic completed with `needs_review` as designed. No token mismatch or truncation occurred. See `reports/archive/WEEK7_PARITY_ANALYSIS.md` for the evidence and next local implementation/data work. The GPU commands below are retained as historical instructions and do not need repeating for the same check.
 
 ## Current project position
 
@@ -15,7 +15,7 @@ Verified current results:
 - Fresh test metrics match the original training artifact values. One near-threshold Ferry page changes the mean-pooled validation recall from the stored 100% to 83.3% under rescore inference.
 - Dataset independence, page-label quality, numerical parity, real-model agent evaluation and credible serving benchmarks remain unfinished. Recovery/evidence changes are local on `codex/week7-recovery`, uncommitted/unpushed.
 
-See `reports/WEEK7_RESCORE_ANALYSIS.md` for the complete evidence and limitations.
+See `reports/archive/WEEK7_RESCORE_ANALYSIS.md` for the complete evidence and limitations.
 
 ## What this diagnostic does
 
@@ -31,7 +31,7 @@ The script resolves the existing cached snapshot in offline mode and uses that i
 
 The predeclared diagnostic rule is: identical unpadded tokens/rendering, no threshold decision flips, and maximum score difference <=0.001 across conditions/repeats. The tolerance is a practical investigation screen, not a statistical guarantee. **Any threshold flip requires review even when its score difference is below 0.001.** The script does not fix a failure by changing thresholds. If the previous `reports/week7_rescore.json` is present, it also verifies its probe hashes and compares the new serving scores with that prior run, recording any runtime or score differences.
 
-Local verification: shell syntax and Python compilation checked; four targeted tests passed, including the case where a tiny score difference crosses a threshold. A mock end-to-end run exercises all six conditions without changing artifacts. The real GPU run has since completed; its verified analysis is in `reports/WEEK7_PARITY_ANALYSIS.md`.
+Local verification: shell syntax and Python compilation checked; four targeted tests passed, including the case where a tiny score difference crosses a threshold. A mock end-to-end run exercises all six conditions without changing artifacts. The real GPU run has since completed; its verified analysis is in `reports/archive/WEEK7_PARITY_ANALYSIS.md`.
 
 ## 1. Upload the two new scripts from the Mac
 

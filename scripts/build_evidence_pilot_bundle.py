@@ -19,7 +19,7 @@ def build():
         raise ValueError('preserve the existing source bundle; version a later build')
     files = [p for p in (root / 'src').rglob('*') if p.is_file() and p.suffix in ('.py', '.json', '.jsonl', '.md')]
     files += [root / p for p in ('pyproject.toml', 'scripts/gpu/run_evidence_pilot.sh', 'scripts/analyze_evidence_pilot.py',
-        'docs/brd/EVIDENCE_PILOT_03_SMOKE.md', 'tests/test_evidence_task.py',
+        'docs/archive/brd/EVIDENCE_PILOT_03_SMOKE.md', 'tests/test_evidence_task.py',
         'tests/test_evidence_pilot.py', 'tests/test_corpus_v3.py', 'tests/test_brd_contract.py')]
     inventory = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
     manifest = {'kind': f'protocol-{AGENT_PROTOCOL}-clean-pilot-source', 'agent_protocol_version': AGENT_PROTOCOL,

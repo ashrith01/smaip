@@ -78,7 +78,7 @@ If vLLM failed to install, `python3 -m smaip.cli bench` still exits 0 and writes
 | `reports/week7_bench.json` | tokens/s, TTFT, p50/p95, defense overhead, or a skip |
 | `reports/week7-gpu-results.tar.gz` | the report, the eval JSON, the bench JSON, and the probe files |
 
-The recovered `reports/RESULTS_week7.md` and `reports/week7_eval.json` are the original full 3B GPU results, including the failed benign utility. Their byte-for-byte copies and SHA-256 manifest are in `reports/runs/week7-gpu-original/`. `make week7-cpu` now writes under `reports/smoke/` and `artifacts/smoke/`, so it cannot overwrite the recovered probes. `reports/RESULTS.md` stays the Week 6 stub measurement.
+The recovered `reports/archive/RESULTS_week7.md` and `reports/week7_eval.json` are the original full 3B GPU results, including the failed benign utility. Their byte-for-byte copies and SHA-256 manifest are in `reports/runs/week7-gpu-original/`. `make week7-cpu` now writes under `reports/smoke/` and `artifacts/smoke/`, so it cannot overwrite the recovered probes. `reports/RESULTS.md` stays the Week 6 stub measurement.
 
 ## Resume the saved 3B probes
 
@@ -90,7 +90,7 @@ The corrected gateway scores each raw source document separately, then reuses th
 
 Model loading is excluded from ablation timing. Text caches are reset between rows, while repeat pages within a row may hit cache. Traces no longer cause extra trained inference outside the timer. The original archive's very fast full-stack row and four-prompt overhead benchmark are cache-biased; do not interpret them as uncached production latency or engine latency percentiles.
 
-Use `scripts/gpu/rescore.sh` for the manual run and a fresh result tarball. See `docs/RECOVERY_PLAN_2026-10-30.md` for transfer instructions and status.
+Use `scripts/gpu/rescore.sh` for the manual run and a fresh result tarball. See `docs/archive/RECOVERY_PLAN_2026-10-30.md` for transfer instructions and status.
 
 ## Teardown
 

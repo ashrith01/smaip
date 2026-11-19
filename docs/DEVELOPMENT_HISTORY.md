@@ -4,9 +4,9 @@ Secure Multi-Agent Inference Platform. Weeks 1–2 are the CPU-first foundations
 
 The platform serves an OpenAI-compatible chat endpoint, runs a small LangGraph of privileged roles, and puts every tool call through a gateway. Week 1 measures that stack. It does not claim a new detector.
 
-The [BRD alignment assessment](brd/BRD_ALIGNMENT_2026-10-30.md) maps the current scaffold and GPU evidence to the full product requirements. It identifies remaining real-model integration, structural ablations, low-FPR evaluation, serving and release work.
+The [BRD alignment assessment](archive/brd/BRD_ALIGNMENT_2026-10-30.md) maps the current scaffold and GPU evidence to the full product requirements. It identifies remaining real-model integration, structural ablations, low-FPR evaluation, serving and release work.
 
-The owner subsequently selected open models for the agent loop too. The [V2 implementation checkpoint](brd/OPEN_MODEL_V2_IMPLEMENTATION.md) documents opt-in `hf-local`/`vllm-local` generation, the bounded `agent-v2` pilot, separate least-privilege/detector evaluation factors, and the new feature/calibration/data contracts. These paths require no OpenAI API key; real-model pilot/independent V2 quality results remain pending.
+The owner subsequently selected open models for the agent loop too. The [V2 implementation checkpoint](archive/brd/OPEN_MODEL_V2_IMPLEMENTATION.md) documents opt-in `hf-local`/`vllm-local` generation, the bounded `agent-v2` pilot, separate least-privilege/detector evaluation factors, and the new feature/calibration/data contracts. These paths require no OpenAI API key; real-model pilot/independent V2 quality results remain pending.
 
 ## 1. Install
 
@@ -423,7 +423,7 @@ SMAIP_PROBE_BACKEND=mock make week7-cpu
 
 That is the CPU smoke: a tiny subset, the model id `Qwen/Qwen2.5-0.5B-Instruct`, and a deterministic token-hash stand-in for the residual stream. It writes `reports/smoke/RESULTS_week7.md` and `reports/smoke/week7_eval.json`. The benchmark command exits 0 and records a skip when CUDA or vLLM is missing. CI runs this smoke and does not download weights.
 
-The recovered `reports/RESULTS_week7.md` is the original full GPU run on `Qwen/Qwen2.5-3B-Instruct`: 57 records, 36/11/10 train/validation/test. Both probes achieve test AUROC 1.0, but the original episode runs block every benign task. This is an unresolved integration failure in that measured run. `make week7-cpu` now writes its tiny smoke under `reports/smoke/` and `artifacts/smoke/`, preserving the 3B files. The previous real 0.5B CPU report is preserved at `reports/runs/week7-cpu-original.md`.
+The recovered `reports/archive/RESULTS_week7.md` is the original full GPU run on `Qwen/Qwen2.5-3B-Instruct`: 57 records, 36/11/10 train/validation/test. Both probes achieve test AUROC 1.0, but the original episode runs block every benign task. This is an unresolved integration failure in that measured run. `make week7-cpu` now writes its tiny smoke under `reports/smoke/` and `artifacts/smoke/`, preserving the 3B files. The previous real 0.5B CPU report is preserved at `reports/runs/week7-cpu-original.md`.
 
 With the Hugging Face extra installed, the same target collects real residuals from the 0.5B checkpoint:
 
@@ -447,7 +447,7 @@ The corpus is the Week 5 and Week 6 pages plus `src/smaip/fixture_data/week7/too
 
 `QwenActivationProbe` still raises `ProbeWeightsUnavailable` for `Qwen/Qwen2.5-3B`. The trained path is `TrainedProbe`. The gateway loads it when the artifact files are present.
 
-The resumed document-scoring fix and `make week7-rescore` are described in [the recovery plan](RECOVERY_PLAN_2026-10-30.md). The real 3B rescore is complete: mean pooling has 100% benign utility and zero scripted attack successes on both fixture suites; linear/full-stack retain one Week 6 benign false positive. The detailed validation and remaining calibration/data-independence limits are in [the rescore analysis](../reports/WEEK7_RESCORE_ANALYSIS.md). The completed [feature-parity diagnostic](../reports/WEEK7_PARITY_ANALYSIS.md) reproduces the validation-threshold discrepancy under batch-four extraction; batch-one matches serving exactly in the measured runs. Trained probes now score individual source documents rather than generated digest arguments; thresholds are unchanged. A saved CUDA probe can be rescored on CPU with `SMAIP_PROBE_DEVICE=cpu`, retaining the collection dtype. With recovered weights present, the live agent gateway needs `.[hf]`; set `SMAIP_PROBES=stub` to explicitly run the earlier lightweight demo.
+The resumed document-scoring fix and `make week7-rescore` are described in [the recovery plan](archive/RECOVERY_PLAN_2026-10-30.md). The real 3B rescore is complete: mean pooling has 100% benign utility and zero scripted attack successes on both fixture suites; linear/full-stack retain one Week 6 benign false positive. The detailed validation and remaining calibration/data-independence limits are in [the rescore analysis](../reports/archive/WEEK7_RESCORE_ANALYSIS.md). The completed [feature-parity diagnostic](../reports/archive/WEEK7_PARITY_ANALYSIS.md) reproduces the validation-threshold discrepancy under batch-four extraction; batch-one matches serving exactly in the measured runs. Trained probes now score individual source documents rather than generated digest arguments; thresholds are unchanged. A saved CUDA probe can be rescored on CPU with `SMAIP_PROBE_DEVICE=cpu`, retaining the collection dtype. With recovered weights present, the live agent gateway needs `.[hf]`; set `SMAIP_PROBES=stub` to explicitly run the earlier lightweight demo.
 
 ## Layout
 

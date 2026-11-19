@@ -53,9 +53,9 @@ and [closure decision](adr/0002-close-as-completed-study.md).
   authorized task, source text, label, reason, and provenance. An assistant
   cannot mark these as AV-reviewed. A reviewed row from an already observed
   source still is not a fresh final test. The three-case local review page and
-  [pre-review audit](../reports/LLMAIL_MISSED_CASES_PRE_REVIEW_01.md) were
+  [pre-review audit](../reports/archive/LLMAIL_MISSED_CASES_PRE_REVIEW_01.md) were
   prepared on 2026-11-12. AV submitted all three reasoned judgments; the
-  [comparison audit](../reports/LLMAIL_OWNER_REVIEW_01_ANALYSIS.md) records
+  [comparison audit](../reports/archive/LLMAIL_OWNER_REVIEW_01_ANALYSIS.md) records
   two source-label and prior-review conflicts. No optional 32-case sample was
   requested.
 - [x] **8. Audit experiment discrepancies.** Compare source labels with AV's
@@ -63,7 +63,7 @@ and [closure decision](adr/0002-close-as-completed-study.md).
   training set or policy. Preserve R031 quarantine and original records. The
   three missed rows' source mapping and shared author/scenario were checked.
   The initial comparison found two conflicting repeat judgments; AV's linked
-  [clarification](../reports/LLMAIL_OWNER_REVIEW_02_RESOLUTION.md) resolved
+  [clarification](../reports/archive/LLMAIL_OWNER_REVIEW_02_RESOLUTION.md) resolved
   both as attack. Original submissions and R031 quarantine remain intact; no
   training set or policy changed, and no new final-test evidence was created.
 
@@ -82,7 +82,7 @@ agent comparison. Steps 12–13 proposed production integration and operational
 acceptance. Those product ambitions were not achieved and are outside the
 closed study. They would require a separate product decision rather than an
 extension of this completion checklist. The preliminary
-[source gate](brd/INDEPENDENT_DATA_GATE_2026-11-12.md) remains a historical
+[source gate](archive/brd/INDEPENDENT_DATA_GATE_2026-11-12.md) remains a historical
 planning record; no new data was acquired through it.
 
 ## Final documentation pass

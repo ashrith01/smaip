@@ -13,9 +13,10 @@ from typing import TypedDict
 
 from smaip.agents.action_schema import ACTION_SCHEMA, SummaryHandoff, validate_action
 from smaip.agents.action_generation import generate_action
+from smaip.errors import SandboxError, ValidationError
 from smaip.eval.contract import EvalConfig
 from smaip.gateway.enforcement import Enforcement
-from smaip.gateway.gateway import Gateway, MUTATING, ROLE_TOOLS
+from smaip.gateway.gateway import Gateway, MUTATING, ROLE_TOOLS, action_digest
 from smaip.probes.registry import stub_probes
 from smaip.privacy import redact_obj, redact_pii
 from smaip.vendors import VendorLibrary
@@ -48,11 +49,6 @@ def _unique_object(pairs):
             raise ValueError('duplicate JSON key')
         result[key] = value
     return result
-
-
-def action_digest(tool, arguments):
-    body = json.dumps({'tool': tool, 'arguments': arguments}, sort_keys=True, separators=(',', ':'))
-    return hashlib.sha256(body.encode()).hexdigest()
 
 
 def parse_action(text):
@@ -155,8 +151,11 @@ def run_open_task(instruction, *, vendor, recipient, config: EvalConfig, engine,
             if not isinstance(subject, str):
                 history.append({'role': 'user', 'content': 'Tool refused: invalid subject'})
                 return
-            approval = gateway.issue_approval(tool, subject)
             approval_digest = None  # One confirmation authorizes one attempted action.
+            try:
+                approval = gateway.issue_approval(tool, arguments)
+            except (SandboxError, ValidationError):
+                pass  # Gateway.execute records invalid arguments through its normal audit path.
         gateway_role = role if config.topology == 'least-privilege' else next(
             key for key, tools in ROLE_TOOLS.items() if tool in tools)
         decision = gateway.execute(role=gateway_role, tool=tool, arguments=arguments,

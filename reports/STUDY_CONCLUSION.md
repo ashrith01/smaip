@@ -15,7 +15,7 @@ The original design expected that privilege separation and checked evidence
 could retain useful task completion while reducing unauthorized actions, and
 that frozen-model activation probes could help distinguish injected content.
 These were the project's design expectations, not preregistered hypotheses.
-The [original requirement mapping](../docs/brd/BRD_ALIGNMENT_2026-10-30.md)
+The [original requirement mapping](../docs/archive/brd/BRD_ALIGNMENT_2026-10-30.md)
 also sought low-false-alarm detection and a full-stack advantage over simpler
 defenses. The completed experiments support narrower conclusions:
 
@@ -41,14 +41,14 @@ mechanisms; real-model measurements are reported separately.
 25-task synthetic clean pilot, the single-agent arm passed 22 tasks and the
 specialist arm passed 23. Successful effects were sandbox sends. The
 one-task difference is descriptive, not evidence that specialists are
-generally better. The [clean pilot audit](EVIDENCE_CLEAN_03_COMPLETED_ANALYSIS.md)
+generally better. The [clean pilot audit](archive/EVIDENCE_CLEAN_03_COMPLETED_ANALYSIS.md)
 preserves failed tasks and checks the successful source references.
 
 **Ranking and operational detection are different questions.** The old
 mean-pool probe achieved an external AUROC of 0.8874 but caught only one of
 400 attacks at its frozen cutoff; the linear probe caught none. This was
 the clearest negative result: a ranking metric alone did not establish a
-usable operating point. The [frozen transfer report](V2_EXTERNAL_FROZEN_01_ANALYSIS.md)
+usable operating point. The [frozen transfer report](archive/V2_EXTERNAL_FROZEN_01_ANALYSIS.md)
 records the unchanged thresholds and their failure.
 
 **Later features showed a strong development signal, with unresolved
@@ -83,6 +83,17 @@ claims. Private data and model/vector artifacts are excluded from Git, so
 the source checkout reproduces the scripted demonstration and software
 checks but not every historical model experiment by itself.
 
+## External V4 addendum, November 19, 2026
+
+I tested the frozen V4 probe on a preregistered, group-disjoint holdout of
+2,000 repository files. Its AUROC dropped to **0.7379** from the perfect
+development rankings. The development cutoff caught 93.7% of attacks and
+flagged 68.1% of benign files. Benign-only target calibration brought the
+false-positive rate to 0.4% and recall to 2.6%. The development cutoff also
+flagged 288 of 339 NotInject benign prompts. V4 failed the serving gate and
+remains disabled. This test measured detection on benchmark documents.
+[External test design and results](PORTFOLIO_RESULTS.md#preregistered-v4-external-test)
+
 ## Final interpretation
 
 My conclusion is that evaluating a guarded agent requires separate evidence
@@ -90,18 +101,17 @@ for task usefulness, source correctness, action authority, detector operating
 points, and actual unauthorized effects. SMAIP made these distinctions
 concrete in code and exposed where attractive component metrics were
 insufficient. The strongest outcome is an auditable experimental case study:
-a bounded working agent workflow, a documented failure of probe transfer,
-and a promising later feature signal whose limits are explicit.
+a bounded working agent workflow and documented failures to transfer frozen
+probe operating points across sources.
 
 ## Three questions for possible future studies
 
 The project ends at these findings. The following questions are optional
 extensions, with no additional experiments required for this study's closure:
 
-1. **Does the V4 signal generalize at a useful threshold?** A new study would
-   reserve independent groups, select a threshold on calibration data, and
-   test recall and false alarms on an untouched final set. It would report
-   counts and uncertainty rather than infer 1%-FPR behavior from ranking.
+1. **Where does the V4 signal generalize at a useful threshold?** The repository
+   file addendum evaluated one source. Further work could test other document
+   surfaces with independent groups and thresholds fixed before holdout scoring.
 2. **Which controls reduce unauthorized effects while preserving task
    usefulness?** A matched agent study would first establish a capable,
    susceptible undefended baseline, then compare controls on the same clean

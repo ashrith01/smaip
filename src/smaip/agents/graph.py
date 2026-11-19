@@ -19,6 +19,7 @@ from langgraph.graph import END, START, StateGraph
 from smaip.agents.actor import bind_arguments
 from smaip.agents.analyst import present_summary
 from smaip.agents.planner import (
+    Step,
     apply_field_overrides,
     expand_catalog,
     parse_user_fields,
@@ -27,7 +28,7 @@ from smaip.agents.planner import (
 )
 from smaip.agents.reader import list_pages_view, read_page_view
 from smaip.agents.taint import Lineage, lineage_for
-from smaip.errors import TaintRejected
+from smaip.errors import SandboxError, TaintRejected, ValidationError
 from smaip.gateway.enforcement import Enforcement, full_stack
 from smaip.gateway.gateway import ROLE_TOOLS, Gateway
 from smaip.messages import Approval, Provenance, Result, Task, Taint, dump_message
@@ -63,19 +64,15 @@ class Runtime:
     ) -> None:
         self.enforcement = enforcement or full_stack()
         self.gateway = Gateway(vendors=vendors, linear=linear, probe=probe)
-        self._approvals: dict[str, Approval] = {}
+        self._approval_steps: dict[str, Step] = {}
+        self._approval_fields: dict = {}
 
     def prepare(self, instruction: str, fields: dict | None = None) -> SmaipState:
         merged = apply_field_overrides(parse_user_fields(instruction), fields)
         steps = plan_fields(merged)
-        plan: list[dict] = []
-        self._approvals = {}
-        for step in steps:
-            plan.append(step.as_dict())
-            if step.approval_subject is not None:
-                self._approvals[step.step_id] = self.gateway.issue_approval(
-                    step.tool, step.approval_subject
-                )
+        self._approval_steps = {step.step_id: step for step in steps if step.approval_subject is not None}
+        self._approval_fields = merged.as_dict()
+        plan = [step.as_dict() for step in steps]
         user = Task(
             id="user",
             instruction=instruction,
@@ -101,8 +98,20 @@ class Runtime:
             "refusals": refusals,
         }
 
-    def approval_for(self, spec: dict) -> Approval | None:
-        return self._approvals.get(str(spec.get("id") or ""))
+    def approval_for(self, spec: dict, messages: list[dict]) -> Approval | None:
+        step_id = str(spec.get("id") or "")
+        planned = self._approval_steps.get(step_id)
+        if planned is None or planned.tool != spec.get("tool"):
+            return None
+        try:
+            # Bind the server-side plan at dispatch time, when the deterministic
+            # summary is available. State-provided arguments never mint approval.
+            approved = bind_arguments(planned.as_dict(), messages, self._approval_fields)
+            approval = self.gateway.issue_approval(planned.tool, approved)
+        except (SandboxError, TaintRejected, ValidationError):
+            return None
+        self._approval_steps.pop(step_id)
+        return approval
 
     def orchestrator(self, state: SmaipState) -> dict:
         messages = list(state.get("messages") or [])
@@ -192,7 +201,7 @@ def _run(role: str, state: SmaipState) -> dict:
         )
         return {"messages": messages, "step": step_i + 1}
     lineage = lineage_for(spec, messages)
-    approval = runtime.approval_for(spec) if spec.get("needs_approval") else None
+    approval = runtime.approval_for(spec, messages) if spec.get("needs_approval") else None
     decision = runtime.gateway.execute(
         role=role,
         tool=tool,

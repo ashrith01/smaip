@@ -222,6 +222,7 @@ def collect(
     backend: str,
     device: str,
     layers: list[int],
+    dtype_name: str | None = None,
 ) -> list[dict]:
     """One row per record: both poolings at every requested layer."""
 
@@ -233,7 +234,7 @@ def collect(
     _require_hf()
     import torch
 
-    model, tokenizer = _load_hf(model_id, device)
+    model, tokenizer = _load_hf(model_id, device, dtype_name)
     hidden_count = _residual_blocks(model)
     for layer in layers:
         if layer < 0 or layer >= hidden_count:
@@ -323,8 +324,7 @@ def _masked_last(hidden, mask) -> list[float]:
 
 
 def _masked_mean(hidden, mask) -> list[float]:
-    import torch
-
+    hidden = hidden.float()
     weights = mask.to(hidden.dtype).unsqueeze(-1)
     total = weights.sum().clamp_min(1.0)
     vector = (hidden * weights).sum(dim=0) / total
@@ -354,7 +354,7 @@ def _load_hf(model_id: str, device: str, dtype_name: str | None = None):
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
-    if chosen not in {"float16", "float32"}:
+    if chosen not in {"bfloat16", "float16", "float32"}:
         raise ProbeBackendUnavailable(f"unknown probe dtype {chosen!r}")
     dtype = getattr(torch, chosen)
     model = _from_pretrained(

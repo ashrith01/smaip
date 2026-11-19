@@ -4,10 +4,13 @@ Mutating tools are send, write, and delete. An approval is a token minted by
 trusted code. Page text and tool-argument fields cannot mint or present one.
 """
 
+import hashlib
 import json
+import posixpath
 import re
 import secrets
 from dataclasses import dataclass
+from threading import Lock
 from typing import Any
 
 from smaip.errors import SandboxError, ValidationError
@@ -44,6 +47,12 @@ _COST_GATEWAY = 5
 
 @dataclass
 class Decision:
+    """Quarantine labels a successful read whose output still contains raw text.
+
+    Scripted evaluation keeps those bytes as tainted evidence. Model-facing
+    callers must check `quarantined` and withhold the text from their context.
+    """
+
     allowed: bool
     reason: str
     tool: str
@@ -72,7 +81,8 @@ class Gateway:
         # Week 1–6 suites pass the stubs explicitly so their gates stay published.
         self.linear = linear if linear is not None else load_linear_defense()
         self.probe = probe if probe is not None else load_activation_defense()
-        self._issued: dict[str, Approval] = {}
+        self._issued: dict[str, tuple[Approval, str]] = {}
+        self._approval_lock = Lock()
         self.tool_calls = 0
         self.cost_units = 0
         self.decisions: list[dict] = []
@@ -84,13 +94,15 @@ class Gateway:
     def cost(self) -> float:
         return self.cost_units / 100
 
-    def issue_approval(self, action: str, subject: str) -> Approval:
-        if action not in MUTATING:
+    def issue_approval(self, action: str, arguments: dict[str, Any]) -> Approval:
+        """Mint a single-use approval for the exact validated tool arguments."""
+        if action not in MUTATING or not isinstance(arguments, dict):
             raise ValidationError("approval rejected")
-        if not isinstance(subject, str) or not subject or any(char.isspace() for char in subject):
-            raise ValidationError("approval rejected")
+        validated = self._validate(action, arguments)
+        subject = validated["to" if action == "send" else "path"]
         approval = Approval(token=secrets.token_urlsafe(16), action=action, subject=subject)
-        self._issued[approval.token] = approval
+        with self._approval_lock:
+            self._issued[approval.token] = approval, action_digest(action, validated)
         return approval
 
     def approval_from_untrusted(self, value: Any) -> Approval | None:
@@ -122,6 +134,7 @@ class Gateway:
         output = ""
         uri: str | None = None
         quarantined = False
+        approval_required = tool in MUTATING and enforcement.approval
 
         if tool not in KNOWN_TOOLS:
             reason = "unknown_tool"
@@ -133,16 +146,25 @@ class Gateway:
             except (ValidationError, SandboxError):
                 reason = "invalid_args"
 
-        if reason is None and tool in MUTATING and enforcement.approval:
-            reason = self._approval_problem(tool, cleaned, approval)
-
         if (
             reason is None
             and enforcement.protect_audit_log
             and tool in {"write", "delete"}
-            and str(cleaned.get("path", "")).lower() == "audit.log"
         ):
-            reason = "audit_log_protected"
+            path = cleaned.get("path")
+            if type(path) is not str:
+                reason = "invalid_args"
+            elif _is_audit_path(path):
+                reason = "audit_log_protected"
+
+        if reason is None and approval_required:
+            try:
+                if not enforcement.schema:
+                    cleaned = self._validate(tool, cleaned)
+                with self._approval_lock:
+                    reason = self._approval_problem(tool, cleaned, approval)
+            except (ValidationError, SandboxError):
+                reason = "invalid_args"
 
         if reason is None and tool in MUTATING:
             hook_text = _hook_text(untrusted_text, cleaned)
@@ -164,7 +186,16 @@ class Gateway:
 
         if reason is None:
             try:
-                output, uri = self._dispatch(tool, cleaned)
+                if approval_required:
+                    # Recheck after hooks so another caller cannot use the same
+                    # approval between validation and the workspace operation.
+                    with self._approval_lock:
+                        reason = self._approval_problem(tool, cleaned, approval)
+                        if reason is None:
+                            output, uri = self._dispatch(tool, cleaned)
+                            self._issued.pop(approval.token)
+                else:
+                    output, uri = self._dispatch(tool, cleaned)
             except (SandboxError, ValidationError, KeyError, TypeError) as exc:
                 reason = f"execution_failed:{exc}"
                 output = ""
@@ -236,14 +267,17 @@ class Gateway:
     ) -> str | None:
         if not isinstance(approval, Approval):
             return "approval_required"
-        known = self._issued.get(approval.token)
-        if known is None or known.action != approval.action or known.subject != approval.subject:
+        entry = self._issued.get(approval.token)
+        if entry is None or entry[0] != approval:
             return "approval_invalid"
+        known, digest = entry
         if known.action != tool:
             return "approval_action_mismatch"
         subject = arguments.get("to") if tool == "send" else arguments.get("path")
         if known.subject != subject:
             return "approval_subject_mismatch"
+        if not secrets.compare_digest(digest, action_digest(tool, arguments)):
+            return "approval_arguments_mismatch"
         return None
 
     def _hook_reason(
@@ -284,26 +318,27 @@ class Gateway:
             return {"expression": expression}
         if tool == "summarize":
             return {"fields": coerce_field_map(arguments.get("fields"))}
+        # Plain strings give validation, hashing, and dispatch the same value.
         if tool == "send":
             to = arguments.get("to")
             subject = arguments.get("subject", "")
             body = arguments.get("body", "")
-            if not isinstance(to, str) or EMAIL_RE.fullmatch(to) is None:
+            if type(to) is not str or EMAIL_RE.fullmatch(to) is None:
                 raise ValidationError("email rejected")
-            if not isinstance(subject, str) or not isinstance(body, str):
+            if type(subject) is not str or type(body) is not str:
                 raise ValidationError("message rejected")
             if len(subject) > 200 or len(body) > 4000:
                 raise ValidationError("message rejected")
             return {"to": to, "subject": subject, "body": body}
         if tool in {"write", "delete"}:
             path = arguments.get("path")
-            if not isinstance(path, str):
+            if type(path) is not str:
                 raise ValidationError("path rejected")
             safe_relative_name(path)
             if tool == "delete":
                 return {"path": path}
             content = arguments.get("content", "")
-            if not isinstance(content, str) or len(content) > 4000:
+            if type(content) is not str or len(content) > 4000:
                 raise ValidationError("content rejected")
             return {"path": path, "content": content}
         raise ValidationError("tool rejected")
@@ -332,6 +367,18 @@ class Gateway:
         if tool == "delete":
             return self.workspace.delete(str(arguments["path"])), None
         raise ValidationError("tool rejected")
+
+
+def action_digest(tool: str, arguments: dict[str, Any]) -> str:
+    encoded = json.dumps({"tool": tool, "arguments": arguments}, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode()).hexdigest()
+
+
+def _is_audit_path(path: str) -> bool:
+    # Resolve aliases from the sandbox root for this check. Workspace still
+    # applies its flat filename policy to anything that reaches dispatch.
+    rooted = "/" + path.replace("\\", "/").lstrip("/")
+    return posixpath.normpath(rooted).casefold() == "/audit.log"
 
 
 def _recorded_taint(

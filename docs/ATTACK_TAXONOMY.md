@@ -69,4 +69,4 @@ Decoded pieces are joined in message order. `lark-split` and the Week 5 `ferry-s
 
 ## Week 7 probes
 
-The table above is the Week 6 measurement. `LP-only` and `probe-only` in that table are still the phrase stubs, because the Week 6 command pins them. Week 7 trains two logistic probes on residual-stream activations (last token, and mean over tokens) and remeasures the same six ablations in `reports/RESULTS_week7.md`. A missing artifact file leaves the stub in place. That is why CI can stay on the mock path. The trained numbers are not a replacement for the Week 6 table.
+The table above is the Week 6 measurement. `LP-only` and `probe-only` in that table are still the phrase stubs, because the Week 6 command pins them. Week 7 trains two logistic probes on residual-stream activations (last token, and mean over tokens) and remeasures the same six ablations in `reports/archive/RESULTS_week7.md`. A missing artifact file leaves the stub in place. That is why CI can stay on the mock path. The trained numbers are not a replacement for the Week 6 table.

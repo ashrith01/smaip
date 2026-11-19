@@ -1,6 +1,8 @@
 """Activation probes."""
 
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -42,3 +44,30 @@ def test_qwen_module_does_not_import_weights_code():
     assert "Qwen/Qwen2.5-3B" in text
     assert "import torch" not in text
     assert "transformers" not in text
+
+
+def test_masked_mean_uses_float32_reduction():
+    torch = pytest.importorskip("torch")
+    from smaip.probes.activations import _masked_mean
+
+    hidden = torch.tensor([[60000.0, 1.0], [123.0, 7.0], [60000.0, 3.0]], dtype=torch.float16)
+    mask = torch.tensor([True, False, True])
+    assert _masked_mean(hidden, mask) == hidden[mask].float().mean(dim=0).tolist()
+
+
+def test_collect_passes_explicit_dtype_to_hf_loader(monkeypatch):
+    from smaip.probes import activations
+
+    model = SimpleNamespace(config=SimpleNamespace(num_hidden_layers=1))
+    seen = []
+
+    def load_model(model_id, device, dtype_name):
+        seen.append((model_id, device, dtype_name))
+        return model, None
+
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace())
+    monkeypatch.setattr(activations, "_require_hf", lambda: None)
+    monkeypatch.setattr(activations, "_load_hf", load_model)
+    activations.collect([], model_id="test-model", backend="hf", device="cpu",
+                        layers=[0], dtype_name="bfloat16")
+    assert seen == [("test-model", "cpu", "bfloat16")]

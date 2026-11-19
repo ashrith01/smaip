@@ -5,9 +5,11 @@ No model loads, calibration, or probe writes occur.
 """
 import gzip
 import hashlib
+import io
 import json
 import math
 from pathlib import Path
+import tarfile
 
 from smaip.probes.dataset import prepare_records
 from evidence_snapshot import assert_sources
@@ -35,10 +37,21 @@ def compare(reference, candidate, thresholds, tolerance):
 
 def main():
     snapshot = Path('reports/runs/week7-gpu-parity')
+    archive_path = Path('reports/week7-parity-results.tar.gz')
     manifest = json.loads((snapshot / 'manifest.json').read_text())
-    assert sha('reports/week7-parity-results.tar.gz') == manifest['archive_sha256']
+    if sha(archive_path) != manifest['archive_sha256']:
+        raise ValueError('Week 7 parity archive checksum differs')
+    with tarfile.open(archive_path) as archive:
+        member = archive.getmember('reports/week7-parity/vectors.jsonl.gz')
+        if not member.isfile():
+            raise ValueError('Expected a regular parity vector file in the archive')
+        with archive.extractfile(member) as stream:
+            vector_dump = stream.read()
+    if hashlib.sha256(vector_dump).hexdigest() != manifest['files']['vectors.jsonl.gz']:
+        raise ValueError('Week 7 parity vector checksum differs')
     for name, digest in manifest['files'].items():
-        assert sha(snapshot / name) == digest
+        if name != 'vectors.jsonl.gz':
+            assert sha(snapshot / name) == digest
     r = json.loads((snapshot / 'parity.json').read_text())
     m = r['metadata']
     assert (m['backend'], m['model_id'], m['device'], m['subset'], m['repeats']) == ('hf', 'Qwen/Qwen2.5-3B-Instruct', 'cuda', 'full', 2)
@@ -93,7 +106,7 @@ def main():
     assert mismatches == m['token_mismatches']
     vectors = {}
     max_score_error = 0.0
-    with gzip.open(snapshot / 'vectors.jsonl.gz', 'rt') as handle:
+    with gzip.open(io.BytesIO(vector_dump), 'rt') as handle:
         for line in handle:
             row = json.loads(line)
             key = (row['condition'], row['id'])

@@ -78,8 +78,8 @@ share connected lineage; row counts therefore do not establish independent
 sampling units. Separate NotInject user-prompt diagnostics were not treated
 as representative task/document calibration data.
 
-The [data inventory](../DATA.md), [mechanical audit](../reports/FEATURE_V4_SOLO_AUDIT_01.md),
-and [owner-review resolution](../reports/LLMAIL_OWNER_REVIEW_02_RESOLUTION.md)
+The [data inventory](../DATA.md), [mechanical audit](../reports/archive/FEATURE_V4_SOLO_AUDIT_01.md),
+and [owner-review resolution](../reports/archive/LLMAIL_OWNER_REVIEW_02_RESOLUTION.md)
 record the transformations, exclusions, and label qualifications.
 
 ## Measures and interpretation rules
@@ -123,10 +123,10 @@ completed study and optional future investigations, not passed acceptance gates.
 
 ## Evidence references
 
-- [V2 development fitting and calibration](../reports/V2_PROBE_DEVELOPMENT_01_ANALYSIS.md)
-- [Frozen external transfer](../reports/V2_EXTERNAL_FROZEN_01_ANALYSIS.md)
-- [Real-model attack development](../reports/OPEN_AGENT_DEV_02_ANALYSIS.md)
-- [Completed clean pilot and preserved failures](../reports/EVIDENCE_CLEAN_03_COMPLETED_ANALYSIS.md)
-- [V4 feature exploration](../reports/FEATURE_V4_EXPLORATORY_02_ANALYSIS.md)
-- [V4 solo fit and saved score verification](../reports/FEATURE_V4_SOLO_PROBE_01.md)
-- [LLMail diagnostic cutoff](../reports/FEATURE_V4_LLMAIL_CUTOFF_01.md)
+- [V2 development fitting and calibration](../reports/archive/V2_PROBE_DEVELOPMENT_01_ANALYSIS.md)
+- [Frozen external transfer](../reports/archive/V2_EXTERNAL_FROZEN_01_ANALYSIS.md)
+- [Real-model attack development](../reports/archive/OPEN_AGENT_DEV_02_ANALYSIS.md)
+- [Completed clean pilot and preserved failures](../reports/archive/EVIDENCE_CLEAN_03_COMPLETED_ANALYSIS.md)
+- [V4 feature exploration](../reports/archive/FEATURE_V4_EXPLORATORY_02_ANALYSIS.md)
+- [V4 solo fit and saved score verification](../reports/archive/FEATURE_V4_SOLO_PROBE_01.md)
+- [LLMail diagnostic cutoff](../reports/archive/FEATURE_V4_LLMAIL_CUTOFF_01.md)
